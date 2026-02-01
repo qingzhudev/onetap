@@ -1239,10 +1239,8 @@ const Modal = ({
   }
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal"
-        onClick={(event) => event.stopPropagation()}>
+    <div className="modal-backdrop">
+      <div className="modal">
         <div className="modal__title">{modal.title}</div>
         <div className="modal__body">
           {modal.type === "confirm" ? (
