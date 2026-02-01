@@ -1,0 +1,365 @@
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap");
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+  background: radial-gradient(circle at top, #fdf2d1 0%, #f4efe6 40%, #efe8db 100%);
+  color: #1f1c1a;
+}
+
+.options {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 28px 40px;
+}
+
+.options__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.options__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  align-self: flex-end;
+}
+
+.options__header h1 {
+  margin: 0 0 6px;
+  font-size: 28px;
+}
+
+.options__header p {
+  margin: 0;
+  color: rgba(31, 28, 26, 0.7);
+}
+
+.panel {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 12px 24px rgba(31, 28, 26, 0.08);
+  border: 1px solid rgba(31, 28, 26, 0.08);
+  margin-bottom: 18px;
+}
+
+.panel h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.4fr) minmax(140px, 0.8fr) minmax(120px, 0.6fr);
+  gap: 10px;
+}
+
+.form-actions {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-row input,
+.form-row select {
+  border: 1px solid rgba(31, 28, 26, 0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: #f9f6f1;
+}
+
+.primary {
+  border: none;
+  background: #1f1c1a;
+  color: #fff;
+  border-radius: 10px;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.primary.is-compact {
+  padding: 8px 10px;
+  font-size: 12px;
+}
+
+.primary:hover {
+  box-shadow: 0 8px 16px rgba(31, 28, 26, 0.2);
+  transform: translateY(-1px);
+}
+
+.group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.group-card {
+  background: #ffffff;
+  border-radius: 16px;
+  border: 1px solid rgba(31, 28, 26, 0.08);
+  padding: 12px 14px;
+  box-shadow: 0 10px 24px rgba(31, 28, 26, 0.06);
+}
+
+.group-card.ungrouped {
+  margin-top: 20px;
+  background: #fef8eb;
+}
+
+.group-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.group-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.group-card__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffe5c7;
+}
+
+.group-card__count {
+  color: rgba(31, 28, 26, 0.55);
+}
+
+.group-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.service-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.service-list__empty {
+  font-size: 12px;
+  color: rgba(31, 28, 26, 0.5);
+}
+
+.service-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f7f4ef;
+  border: 1px solid rgba(31, 28, 26, 0.05);
+}
+
+.service-item__name {
+  font-weight: 600;
+}
+
+.service-item__info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.service-item__template {
+  font-size: 12px;
+  color: rgba(31, 28, 26, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-item__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.drag-handle {
+  border: none;
+  background: #f0e6d8;
+  border-radius: 8px;
+  padding: 6px 8px;
+  cursor: grab;
+  font-size: 14px;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.ghost-button {
+  border: none;
+  background: transparent;
+  color: rgba(31, 28, 26, 0.7);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ghost-button:hover {
+  color: #1f1c1a;
+}
+
+.ghost-button.danger {
+  color: #a13524;
+}
+
+.drag-overlay {
+  background: #1f1c1a;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  box-shadow: 0 10px 24px rgba(31, 28, 26, 0.25);
+}
+
+.options__stats {
+  margin-top: 24px;
+  font-size: 12px;
+  color: rgba(31, 28, 26, 0.6);
+  text-align: center;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(31, 28, 26, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.modal {
+  width: min(360px, 90vw);
+  background: #fff;
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 16px 36px rgba(31, 28, 26, 0.25);
+}
+
+.modal__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.modal__body p {
+  margin: 0;
+  color: rgba(31, 28, 26, 0.7);
+  font-size: 14px;
+}
+
+.modal__hint {
+  font-size: 12px;
+  color: rgba(31, 28, 26, 0.6);
+  margin-top: -4px;
+}
+
+.modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.modal__body input {
+  width: 100%;
+  border: 1px solid rgba(31, 28, 26, 0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: #f9f6f1;
+}
+
+.modal__select {
+  width: 100%;
+  border: 1px solid rgba(31, 28, 26, 0.15);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: #f9f6f1;
+}
+
+.modal__actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.toast-stack {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 2000;
+  max-width: 280px;
+}
+
+.toast {
+  background: #1f1c1a;
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  box-shadow: 0 10px 24px rgba(31, 28, 26, 0.25);
+}
+
+.droppable.is-over {
+  outline: 2px dashed rgba(31, 28, 26, 0.25);
+  outline-offset: 4px;
+}
+
+.service-item.is-dragging,
+.group-card.is-dragging {
+  opacity: 0.6;
+}
+
+@media (max-width: 720px) {
+  .options {
+    padding: 20px 16px 32px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .group-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

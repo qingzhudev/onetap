@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "OneTap",
+  "version": "0.1.0",
+  "description": "OneTap browser extension for domain workflows in one click.",
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  "action": {
+    "default_title": "OneTap"
+  },
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "icons": {
+    "16": "assets/icon.png",
+    "32": "assets/icon.png",
+    "48": "assets/icon.png",
+    "128": "assets/icon.png"
+  }
+}
