@@ -5,10 +5,14 @@
   "description": "OneTap browser extension for domain workflows in one click.",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "sidePanel"
   ],
   "action": {
     "default_title": "OneTap"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
   },
   "options_ui": {
     "page": "options.html",

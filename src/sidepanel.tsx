@@ -15,7 +15,7 @@ import { useToast } from "~lib/toast"
 import type { AnalysisService, ServiceGroup, UserConfig } from "~lib/types"
 import "~styles/popup.css"
 
-const IndexPopup = () => {
+const SidePanel = () => {
   const [config, setConfig] = useState<UserConfig | null>(null)
   const [domain, setDomain] = useState<string | null>(null)
   const { toasts, notify } = useToast()
@@ -243,4 +243,4 @@ const IndexPopup = () => {
   )
 }
 
-export default IndexPopup
+export default SidePanel
