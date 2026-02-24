@@ -20,7 +20,7 @@ export const getRootDomain = (rawUrl?: string | null): string | null => {
   }
 }
 
-export const queryActiveTabUrl = async (): Promise<string | null> => {
+export const queryActiveTab = async (): Promise<chrome.tabs.Tab | null> => {
   if (typeof chrome === "undefined" || !chrome.tabs) {
     return null
   }
@@ -31,6 +31,10 @@ export const queryActiveTabUrl = async (): Promise<string | null> => {
     })
   })
 
-  const url = tabs[0]?.url ?? null
-  return url
+  return tabs[0] ?? null
+}
+
+export const queryActiveTabUrl = async (): Promise<string | null> => {
+  const tab = await queryActiveTab()
+  return tab?.url ?? null
 }

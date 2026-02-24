@@ -1,14 +1,29 @@
 # OneTap 浏览器插件
 
-OneTap 是一个基于 Plasmo 的浏览器扩展，用于对当前页面域名快速执行预设分析服务，并支持分组管理与一键批量打开。
+OneTap 是一个基于 Plasmo 的浏览器扩展，用于对当前页面域名或选中文本快速执行预设分析服务，并支持分组管理与一键批量打开。
 
 ## 功能概览
-- 自动提取当前标签页根域名（移除 www 前缀）
-- 点击单个服务在新标签页打开
-- 点击分组图标批量打开组内服务（后台打开）
-- 分组创建、重命名、删除、拖拽排序
-- 服务拖拽排序与跨组移动
-- 自动保存配置
+- ✅ **域名分析**：自动提取当前标签页域名（去除 www.）
+- ✅ **文本搜索**：选中文本后直接触发服务
+- ✅ **模式切换**：自动识别域名/文本模式并支持手动切换
+- ✅ **重复操作**：一键重放上次服务或分组
+- ✅ **配置管理**：支持 JSON 与配置码导入/导出
+- ✅ **分组管理**：分组创建、重命名、删除、拖拽排序
+- ✅ **批量打开**：一键打开组内服务（后台打开）
+
+详细功能说明请查看 `README_FEATURES.md`。
+
+## 变量支持
+
+服务 URL 模板可使用以下变量：
+
+- `{domain}` - 当前网站域名（自动去除 www.）
+- `{text}` - 用户在页面上选中的文本
+
+示例：
+- Google Search: `https://google.com/search?q={text}`
+- Site Search: `https://google.com/search?q=site:{domain}+{text}`
+- Whois: `https://whois.domaintools.com/{domain}`
 
 ## 开发环境
 
@@ -36,7 +51,7 @@ npm run package
 - GitHub Actions CD：标签发布时自动打包并上传产物
 
 ## 目录结构
-- `src/popup.tsx` 弹出层 UI
+- `src/sidepanel.tsx` 侧边栏 UI
 - `src/options.tsx` 分组管理页面
 - `src/lib/` 业务逻辑与存储工具
 - `src/styles/` 样式文件

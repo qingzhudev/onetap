@@ -25,7 +25,8 @@ import {
   createDefaultConfig,
   createInitialConfig,
   getOrderedGroups,
-  getUngroupedServices
+  getUngroupedServices,
+  inferSupportedVariables
 } from "~lib/config"
 import {
   ICONS,
@@ -37,7 +38,7 @@ import {
 } from "~lib/constants"
 import { createId } from "~lib/id"
 import { t } from "~lib/i18n"
-import { getConfig, saveConfig } from "~lib/storage"
+import { getConfig, saveConfig, exportConfig, importConfig } from "~lib/storage"
 import { useToast } from "~lib/toast"
 import type { AnalysisService, ServiceGroup, UserConfig } from "~lib/types"
 import "~styles/options.css"
@@ -326,6 +327,7 @@ const OptionsPage = () => {
   const [groupIcon, setGroupIcon] = useState(ICONS[0])
   const [modal, setModal] = useState<ModalState | null>(null)
   const [pendingModal, setPendingModal] = useState<ModalState | null>(null)
+  const [showConfigMenu, setShowConfigMenu] = useState(false)
   const { toasts, notify } = useToast()
 
   useEffect(() => {
@@ -604,7 +606,10 @@ const OptionsPage = () => {
       return false
     }
 
-    if (!url.includes("{domain}")) {
+    const trimmedUrl = url.trim()
+    const supportedVariables = inferSupportedVariables(trimmedUrl)
+
+    if (!supportedVariables.domain && !supportedVariables.text) {
       notify(t("urlTemplateMissingDomain"))
       return false
     }
@@ -612,8 +617,9 @@ const OptionsPage = () => {
     const newService: AnalysisService = {
       id: createId(),
       name: trimmedName,
-      urlTemplate: url.trim(),
-      createdAt: new Date().toISOString()
+      urlTemplate: trimmedUrl,
+      createdAt: new Date().toISOString(),
+      supportedVariables
     }
 
     setConfig((prev) => {
@@ -659,12 +665,14 @@ const OptionsPage = () => {
       return false
     }
 
-    if (!url.includes("{domain}")) {
+    const trimmedUrl = url.trim()
+    const supportedVariables = inferSupportedVariables(trimmedUrl)
+
+    if (!supportedVariables.domain && !supportedVariables.text) {
       notify(t("urlTemplateMissingDomain"))
       return false
     }
 
-    const trimmedUrl = url.trim()
     const targetGroupId = groupId === UNGROUPED_ID ? null : groupId
 
     setConfig((prev) => {
@@ -709,7 +717,12 @@ const OptionsPage = () => {
         ...prev,
         services: prev.services.map((item) =>
           item.id === serviceId
-            ? { ...item, name: trimmedName, urlTemplate: trimmedUrl }
+            ? {
+                ...item,
+                name: trimmedName,
+                urlTemplate: trimmedUrl,
+                supportedVariables
+              }
             : item
         ),
         groups: updatedGroups
@@ -789,7 +802,10 @@ const OptionsPage = () => {
           id: createId(),
           name: defaultService.name,
           urlTemplate: defaultService.urlTemplate,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          supportedVariables:
+            defaultService.supportedVariables ||
+            inferSupportedVariables(defaultService.urlTemplate)
         }
 
         nextServices.push(newService)
@@ -819,6 +835,46 @@ const OptionsPage = () => {
     })
 
     notify(t("importedSamples", { groups: addedGroups, services: addedServices }))
+  }
+
+  const handleExport = async () => {
+    try {
+      const configJson = await exportConfig()
+      const blob = new Blob([configJson], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `onetap-config-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      notify(t("exportSuccess"))
+    } catch (error) {
+      console.error("Export failed:", error)
+      notify(t("exportFailed"))
+    }
+  }
+
+  const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      try {
+        const content = e.target?.result as string
+        const importedConfig = await importConfig(content)
+        setConfig(importedConfig)
+        notify(t("importSuccess"))
+      } catch (error) {
+        console.error("Import failed:", error)
+        notify(t("importFailed"))
+      }
+    }
+    reader.readAsText(file)
+    // Reset input to allow re-importing the same file
+    event.target.value = ""
   }
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -1022,9 +1078,48 @@ const OptionsPage = () => {
           <p>{t("headerSubtitle")}</p>
         </div>
         <div className="options__actions">
-          <button className="primary is-compact" onClick={handleImportDefaults}>
-            {t("buttonImportSamples")}
-          </button>
+          <div className="dropdown">
+            <button 
+              className="primary is-compact dropdown-toggle"
+              onClick={() => setShowConfigMenu(!showConfigMenu)}
+            >
+              ⚙️ {t("optionsConfigManagement")}
+            </button>
+            {showConfigMenu && (
+              <div className="dropdown-menu">
+                <button 
+                  className="dropdown-item"
+                  onClick={() => {
+                    handleExport()
+                    setShowConfigMenu(false)
+                  }}
+                >
+                  {t("buttonExport")} Config
+                </button>
+                <label className="dropdown-item button-file">
+                  {t("buttonImport")} Config
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={(e) => {
+                      handleImport(e)
+                      setShowConfigMenu(false)
+                    }}
+                    style={{ display: "none" }}
+                  />
+                </label>
+                <button 
+                  className="dropdown-item"
+                  onClick={() => {
+                    handleImportDefaults()
+                    setShowConfigMenu(false)
+                  }}
+                >
+                  Import Sample Configs
+                </button>
+              </div>
+            )}
+          </div>
           <button className="primary is-compact" onClick={() => openCreateGroupModal()}>
             {t("buttonAddGroup")}
           </button>
