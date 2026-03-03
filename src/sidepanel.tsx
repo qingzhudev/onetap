@@ -246,7 +246,7 @@ const SidePanel = () => {
     notify(message)
   }
 
-  const handleOpenService = async (service: AnalysisService) => {
+  const handleOpenService = async (service: AnalysisService, active = true) => {
     if (mode === "domain" && !domain) {
       return
     }
@@ -266,10 +266,33 @@ const SidePanel = () => {
     }
 
     void incrementUsageStats({ serviceIds: [service.id] })
-    await openTab(url, true)
+
+    // Get current window ID before opening new tab
+    const currentTab = await queryActiveTab()
+    const windowId = currentTab?.windowId ?? null
+
+    await openTab(url, active)
+
+    // After opening new tab, close sidepanel by messaging background script
+    if (active && windowId) {
+      chrome.runtime.sendMessage({
+        type: "CLOSE_SIDEPANEL",
+        windowId
+      }).catch(() => {
+        // Ignore errors if sidepanel already closed
+      })
+    }
   }
 
-  const handleOpenGroup = async (group: ServiceGroup) => {
+  const handleServiceClick = (service: AnalysisService) => (event: React.MouseEvent) => {
+    // Left click (button 0) → open in foreground + close sidepanel
+    // Middle click (button 1) → open in background
+    const active = event.button === 0
+
+    void handleOpenService(service, active)
+  }
+
+  const handleOpenGroup = async (group: ServiceGroup, active = true) => {
     if (mode === "domain" && !domain) {
       return
     }
@@ -309,7 +332,32 @@ const SidePanel = () => {
       groupId: group.id,
       serviceIds: services.map((service) => service.id)
     })
-    await openTabsInOrder(urls)
+    // For group clicks, activate the first tab if active is true
+    const activeIndex = active ? 0 : null
+
+    // Get current window ID before opening new tabs
+    const currentTab = await queryActiveTab()
+    const windowId = currentTab?.windowId ?? null
+
+    await openTabsInOrder(urls, activeIndex)
+
+    // After opening new tabs, close sidepanel by messaging background script
+    if (active && windowId) {
+      chrome.runtime.sendMessage({
+        type: "CLOSE_SIDEPANEL",
+        windowId
+      }).catch(() => {
+        // Ignore errors if sidepanel already closed
+      })
+    }
+  }
+
+  const handleGroupClick = (group: ServiceGroup) => (event: React.MouseEvent) => {
+    // Left click (button 0) → open in foreground + close sidepanel
+    // Middle click (button 1) → open in background
+    const active = event.button === 0
+
+    void handleOpenGroup(group, active)
   }
 
   const handleOpenOptions = async () => {
@@ -334,7 +382,7 @@ const SidePanel = () => {
             text: textValue
           })
         }
-        onClick={() => handleOpenService(service)}>
+        onMouseDown={handleServiceClick(service)}>
         {service.name}
       </button>
     </li>
@@ -445,7 +493,7 @@ const SidePanel = () => {
                         })
                       )
                     }
-                    onClick={() => handleOpenGroup(group)}>
+                    onMouseDown={handleGroupClick(group)}>
                     <span>{group.icon}</span>
                   </button>
                 <div className="group__title">

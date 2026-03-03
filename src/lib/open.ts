@@ -4,8 +4,7 @@ export const openTab = async (url: string, active = true) => {
   }
 
   return new Promise<void>((resolve) => {
-    // Open new tab in background (active: false)
-    chrome.tabs.create({ url, active: false }, () => {
+    chrome.tabs.create({ url, active }, () => {
       resolve()
     })
   })

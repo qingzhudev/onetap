@@ -50,3 +50,22 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     })
   }
 })
+
+// Handle sidepanel close request
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type === "CLOSE_SIDEPANEL") {
+    const { windowId } = message
+    if (windowId && chrome.sidePanel) {
+      // Use the correct close() API
+      chrome.sidePanel.close({ windowId })
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          console.error("[OneTap Background] Failed to close sidepanel:", error)
+          sendResponse({ success: false, error: error?.message })
+        })
+    } else {
+      sendResponse({ success: false, error: "Invalid windowId or sidePanel not available" })
+    }
+    return true // Keep message channel open for async response
+  }
+})
