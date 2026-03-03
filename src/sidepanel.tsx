@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   buildServiceUrl,
@@ -6,7 +6,7 @@ import {
   getUngroupedServices
 } from "~lib/config"
 import { UNGROUPED_ID } from "~lib/constants"
-import { queryActiveTab, queryActiveTabUrl, getRootDomain } from "~lib/domain"
+import { extractDomainFromText, queryActiveTab, queryActiveTabUrl, getRootDomain } from "~lib/domain"
 import { t } from "~lib/i18n"
 import { openTab, openTabsInOrder } from "~lib/open"
 import { getConfig, subscribeConfig } from "~lib/storage"
@@ -28,16 +28,42 @@ const SidePanel = () => {
   const [isSelecting, setIsSelecting] = useState(false)
   const { toasts, notify } = useToast()
 
+  // Use ref to track last selection without causing re-renders
+  const lastSelectionRef = useRef<string | null>(null)
+
   const textValue = textInput.trim()
 
+  /**
+   * Detect text selection and intelligently set mode based on content type
+   * - If selection is a domain/URL, use domain mode with extracted domain
+   * - If selection is plain text, use text mode
+   * - If no selection, use domain mode with current tab's domain
+   */
   const detectSelectionAndSetMode = async () => {
     const selection = await fetchSelectedText()
-    if (selection) {
-      setMode("text")
-      setTextInput(selection)
-    } else {
+    const trimmedSelection = selection?.trim() || null
+
+    if (!trimmedSelection) {
+      // No selection - use domain mode
       setMode("domain")
       setTextInput("")
+      lastSelectionRef.current = null
+      return
+    }
+
+    lastSelectionRef.current = trimmedSelection
+
+    // Check if selection looks like a domain/URL
+    const extractedDomain = extractDomainFromText(trimmedSelection)
+    if (extractedDomain) {
+      // Selection is a domain/URL - use domain mode with this domain
+      setDomain(extractedDomain)
+      setMode("domain")
+      setTextInput(extractedDomain)
+    } else {
+      // Selection is plain text - use text mode
+      setMode("text")
+      setTextInput(trimmedSelection)
     }
   }
 
@@ -91,32 +117,34 @@ const SidePanel = () => {
     return () => chrome.runtime.onMessage.removeListener(handler)
   }, [])
 
-  // Auto detect text selection changes in text mode
+  // Auto detect text selection changes
+  // Monitors for selection changes, re-selections, and cancellations
   useEffect(() => {
-    if (mode !== "text" || typeof chrome === "undefined") {
+    if (typeof chrome === "undefined") {
       return
     }
 
-    let lastSelection: string | null = textInput
     let intervalId: NodeJS.Timeout
 
     const checkSelection = async () => {
       const currentSelection = await fetchSelectedText()
-      if (currentSelection && currentSelection !== lastSelection) {
-        setTextInput(currentSelection)
-        lastSelection = currentSelection
+      const trimmedSelection = currentSelection?.trim() || null
+
+      // Selection state changed - re-evaluate mode
+      if (trimmedSelection !== lastSelectionRef.current) {
+        await detectSelectionAndSetMode()
       }
     }
 
-    // Check selection every 1 second in text mode
-    intervalId = setInterval(checkSelection, 1000)
+    // Check selection every 500ms for better responsiveness
+    intervalId = setInterval(checkSelection, 500)
 
     return () => {
       if (intervalId) {
         clearInterval(intervalId)
       }
     }
-  }, [mode, textInput])
+  }, [mode]) // Only re-create effect when mode changes to avoid missing changes
 
   const handleTabChange = async () => {
     const tabUrl = await queryActiveTabUrl()
@@ -292,15 +320,8 @@ const SidePanel = () => {
 
   const handleUseSelection = async () => {
     setIsSelecting(true)
-    const selection = await fetchSelectedText()
+    await detectSelectionAndSetMode()
     setIsSelecting(false)
-
-    if (!selection) {
-      notify(t("popupNoSelection"))
-      return
-    }
-
-    setTextInput(selection)
   }
 
   const renderServiceItem = (service: AnalysisService) => (
