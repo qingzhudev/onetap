@@ -4,10 +4,12 @@ import {
   KeyboardSensor,
   PointerSensor,
   type DragEndEvent,
+  type DragOverEvent,
   type DragStartEvent,
   useDroppable,
   useSensor,
-  useSensors
+  useSensors,
+  type ClientRect
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -78,7 +80,8 @@ const SortableGroup = ({
   onRemoveService,
   onDeleteService,
   onEditService,
-  disabled
+  disabled,
+  insertPosition
 }: {
   group: ServiceGroup
   services: AnalysisService[]
@@ -88,6 +91,7 @@ const SortableGroup = ({
   onDeleteService: (serviceId: string) => void
   onEditService: (serviceId: string) => void
   disabled: boolean
+  insertPosition: InsertPosition | null
 }) => {
   const {
     attributes,
@@ -146,6 +150,14 @@ const SortableGroup = ({
                 onDelete={onDeleteService}
                 onEdit={onEditService}
                 showRemove
+                insertBefore={
+                  insertPosition?.groupId === group.id &&
+                  insertPosition?.beforeServiceId === service.id
+                }
+                insertAfter={
+                  insertPosition?.groupId === group.id &&
+                  insertPosition?.afterServiceId === service.id
+                }
               />
             ))
           )}
@@ -160,13 +172,15 @@ const SortableUngrouped = ({
   onRemoveService,
   onDeleteService,
   onEditService,
-  disabled
+  disabled,
+  insertPosition
 }: {
   services: AnalysisService[]
   onRemoveService: (serviceId: string) => void
   onDeleteService: (serviceId: string) => void
   onEditService: (serviceId: string) => void
   disabled: boolean
+  insertPosition: InsertPosition | null
 }) => {
   const {
     attributes,
@@ -214,6 +228,14 @@ const SortableUngrouped = ({
                 onDelete={onDeleteService}
                 onEdit={onEditService}
                 showRemove={false}
+                insertBefore={
+                  insertPosition?.groupId === null &&
+                  insertPosition?.beforeServiceId === service.id
+                }
+                insertAfter={
+                  insertPosition?.groupId === null &&
+                  insertPosition?.afterServiceId === service.id
+                }
               />
             ))
           )}
@@ -266,13 +288,17 @@ const SortableService = ({
   onRemove,
   onDelete,
   onEdit,
-  showRemove
+  showRemove,
+  insertBefore,
+  insertAfter
 }: {
   service: AnalysisService
   onRemove: (id: string) => void
   onDelete: (id: string) => void
   onEdit: (id: string) => void
   showRemove: boolean
+  insertBefore?: boolean
+  insertAfter?: boolean
 }) => {
   const {
     attributes,
@@ -294,6 +320,9 @@ const SortableService = ({
       style={style}
       className={clsx("service-item", isDragging && "is-dragging")}
       {...attributes}>
+      {insertBefore && (
+        <div className="insert-indicator insert-indicator--before" />
+      )}
       <button className="drag-handle" {...listeners}>
         ⠿
       </button>
@@ -316,14 +345,24 @@ const SortableService = ({
           {t("serviceDelete")}
         </button>
       </div>
+      {insertAfter && (
+        <div className="insert-indicator insert-indicator--after" />
+      )}
     </li>
   )
+}
+
+type InsertPosition = {
+  groupId: string | null
+  beforeServiceId: string | null
+  afterServiceId: string | null
 }
 
 const OptionsPage = () => {
   const [config, setConfig] = useState<UserConfig>(() => createInitialConfig())
   const [isReady, setIsReady] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [insertPosition, setInsertPosition] = useState<InsertPosition | null>(null)
   const [groupIcon, setGroupIcon] = useState(ICONS[0])
   const [modal, setModal] = useState<ModalState | null>(null)
   const [pendingModal, setPendingModal] = useState<ModalState | null>(null)
@@ -879,6 +918,52 @@ const OptionsPage = () => {
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id))
+    setInsertPosition(null)
+  }
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const active = String(event.active.id)
+    const over = event.over ? String(event.over.id) : null
+
+    if (!isServiceId(active)) {
+      setInsertPosition(null)
+      return
+    }
+
+    const activeServiceId = stripPrefix(active, SERVICE_PREFIX)
+    let targetGroupId: string | null = null
+    let beforeServiceId: string | null = null
+    let afterServiceId: string | null = null
+
+    if (isServiceId(over)) {
+      const overServiceId = stripPrefix(over, SERVICE_PREFIX)
+      targetGroupId = findServiceGroupId(config, overServiceId)
+      if (targetGroupId === UNGROUPED_ID) {
+        targetGroupId = null
+      }
+
+      beforeServiceId = overServiceId
+    } else if (isContainerId(over)) {
+      targetGroupId = stripPrefix(over, CONTAINER_PREFIX)
+      if (targetGroupId === UNGROUPED_ID) {
+        targetGroupId = null
+      }
+      const group = targetGroupId ? findGroupById(config, targetGroupId) : null
+      if (group && group.serviceIds.length > 0) {
+        afterServiceId = group.serviceIds[group.serviceIds.length - 1]
+      }
+    } else if (isGroupId(over)) {
+      targetGroupId = stripPrefix(over, GROUP_PREFIX)
+      if (targetGroupId === UNGROUPED_ID) {
+        targetGroupId = null
+      }
+      const group = targetGroupId ? findGroupById(config, targetGroupId) : null
+      if (group && group.serviceIds.length > 0) {
+        afterServiceId = group.serviceIds[group.serviceIds.length - 1]
+      }
+    }
+
+    setInsertPosition({ groupId: targetGroupId, beforeServiceId, afterServiceId })
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -886,6 +971,7 @@ const OptionsPage = () => {
     const over = event.over ? String(event.over.id) : null
 
     setActiveId(null)
+    setInsertPosition(null)
 
     if (!over || active === over) {
       return
@@ -1022,14 +1108,24 @@ const OptionsPage = () => {
         }
 
         if (group.id === targetGroup?.id) {
-          const overServiceId = isServiceId(over)
-            ? stripPrefix(over, SERVICE_PREFIX)
-            : null
           const nextIds = group.serviceIds.filter((id) => id !== activeServiceId)
-          const insertIndex = overServiceId
-            ? nextIds.indexOf(overServiceId)
-            : nextIds.length
-          nextIds.splice(insertIndex === -1 ? nextIds.length : insertIndex, 0, activeServiceId)
+          let insertIndex = nextIds.length
+
+          if (insertPosition) {
+            if (insertPosition.beforeServiceId) {
+              const beforeIndex = nextIds.indexOf(insertPosition.beforeServiceId)
+              if (beforeIndex !== -1) {
+                insertIndex = beforeIndex
+              }
+            } else if (insertPosition.afterServiceId) {
+              const afterIndex = nextIds.indexOf(insertPosition.afterServiceId)
+              if (afterIndex !== -1) {
+                insertIndex = afterIndex + 1
+              }
+            }
+          }
+
+          nextIds.splice(insertIndex, 0, activeServiceId)
 
           return {
             ...group,
@@ -1133,6 +1229,7 @@ const OptionsPage = () => {
       <DndContext
         sensors={sensors}
         onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
         onDragEnd={handleDragEnd}>
         <SortableContext
           items={orderedGroupIds.map((groupId) => asGroupDragId(groupId))}
@@ -1151,6 +1248,7 @@ const OptionsPage = () => {
                       onDeleteService={handleDeleteService}
                       onEditService={openEditServiceModal}
                       disabled={!isReady}
+                      insertPosition={insertPosition}
                     />
                   </DroppableContainer>
                 )
@@ -1176,6 +1274,7 @@ const OptionsPage = () => {
                     onDeleteService={handleDeleteService}
                     onEditService={openEditServiceModal}
                     disabled={!isReady}
+                    insertPosition={insertPosition}
                   />
                 </DroppableContainer>
               )

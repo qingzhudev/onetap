@@ -418,6 +418,34 @@ body {
   opacity: 0.6;
 }
 
+.insert-indicator {
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 2px;
+  background: rgba(31, 28, 26, 0.25);
+  z-index: 100;
+  pointer-events: none;
+}
+
+.insert-indicator--before {
+  top: -3px;
+}
+
+.insert-indicator--after {
+  bottom: -3px;
+}
+
+.service-item {
+  position: relative;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.service-item:has(.insert-indicator) {
+  background: rgba(31, 28, 26, 0.06);
+  box-shadow: 0 2px 8px rgba(31, 28, 26, 0.08);
+}
+
 .options__section {
   margin-top: 24px;
   background: #ffffff;
