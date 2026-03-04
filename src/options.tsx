@@ -40,7 +40,7 @@ import {
 } from "~lib/constants"
 import { createId } from "~lib/id"
 import { t } from "~lib/i18n"
-import { getConfig, saveConfig, exportConfig, importConfig } from "~lib/storage"
+import { getConfig, saveConfig, exportConfig, importConfig, exportDomainHistory, exportKeywordHistory } from "~lib/storage"
 import { useToast } from "~lib/toast"
 import type { AnalysisService, ServiceGroup, UserConfig } from "~lib/types"
 import "~styles/options.css"
@@ -895,6 +895,54 @@ const OptionsPage = () => {
     }
   }
 
+  const handleExportDomains = async () => {
+    try {
+      const domains = await exportDomainHistory()
+      if (!domains) {
+        notify(t("exportDomainsEmpty"))
+        return
+      }
+      const csvContent = `domain\n${domains.split("\n").map(d => `"${d}"`).join("\n")}`
+      const blob = new Blob([csvContent], { type: "text/csv" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `onetap-domains-${new Date().toISOString().split("T")[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      notify(t("exportDomainsSuccess"))
+    } catch (error) {
+      console.error("Export domains failed:", error)
+      notify(t("exportDomainsFailed"))
+    }
+  }
+
+  const handleExportKeywords = async () => {
+    try {
+      const keywords = await exportKeywordHistory()
+      if (!keywords) {
+        notify(t("exportKeywordsEmpty"))
+        return
+      }
+      const csvContent = `keyword\n${keywords.split("\n").map(k => `"${k.replace(/"/g, '""')}"`).join("\n")}`
+      const blob = new Blob([csvContent], { type: "text/csv" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `onetap-keywords-${new Date().toISOString().split("T")[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      notify(t("exportKeywordsSuccess"))
+    } catch (error) {
+      console.error("Export keywords failed:", error)
+      notify(t("exportKeywordsFailed"))
+    }
+  }
+
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -1179,7 +1227,7 @@ const OptionsPage = () => {
               className="primary is-compact dropdown-toggle"
               onClick={() => setShowConfigMenu(!showConfigMenu)}
             >
-              ⚙️ {t("optionsConfigManagement")}
+              ⚙️ {t("optionsSettings")}
             </button>
             {showConfigMenu && (
               <div className="dropdown-menu">
@@ -1212,6 +1260,25 @@ const OptionsPage = () => {
                   }}
                 >
                   Import Sample Configs
+                </button>
+                <div className="dropdown-divider" />
+                <button 
+                  className="dropdown-item"
+                  onClick={() => {
+                    handleExportDomains()
+                    setShowConfigMenu(false)
+                  }}
+                >
+                  {t("optionsExportDomains")}
+                </button>
+                <button 
+                  className="dropdown-item"
+                  onClick={() => {
+                    handleExportKeywords()
+                    setShowConfigMenu(false)
+                  }}
+                >
+                  {t("optionsExportKeywords")}
                 </button>
               </div>
             )}

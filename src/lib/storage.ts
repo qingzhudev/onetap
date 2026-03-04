@@ -7,6 +7,9 @@ const storage = new Storage({ area: "local" })
 const CONFIG_KEY = "onetap:config:v1"
 const LAST_OP_DOMAIN_KEY = "onetap:last_op:domain"
 const LAST_OP_TEXT_KEY = "onetap:last_op:text"
+const DOMAIN_HISTORY_KEY = "onetap:history:domains"
+const KEYWORD_HISTORY_KEY = "onetap:history:keywords"
+const MAX_HISTORY_ITEMS = 1000
 
 export const getConfig = async (): Promise<UserConfig> => {
   const stored = await storage.get<UserConfig>(CONFIG_KEY)
@@ -94,4 +97,52 @@ export const importConfig = async (jsonString: string): Promise<UserConfig> => {
     console.error("[OneTap Storage] Failed to import config:", error)
     throw new Error("Invalid config format")
   }
+}
+
+const addToHistory = async (
+  key: string,
+  value: string
+): Promise<string[]> => {
+  const existing = await storage.get<string[]>(key)
+  let history = existing || []
+  
+  const filtered = history.filter((item) => item !== value)
+  history = [value, ...filtered].slice(0, MAX_HISTORY_ITEMS)
+  
+  await storage.set(key, history)
+  return history
+}
+
+export const addDomainToHistory = async (domain: string): Promise<string[]> => {
+  if (!domain || domain.trim() === "") {
+    return []
+  }
+  return addToHistory(DOMAIN_HISTORY_KEY, domain.trim().toLowerCase())
+}
+
+export const addKeywordToHistory = async (keyword: string): Promise<string[]> => {
+  if (!keyword || keyword.trim() === "") {
+    return []
+  }
+  return addToHistory(KEYWORD_HISTORY_KEY, keyword.trim())
+}
+
+export const getDomainHistory = async (): Promise<string[]> => {
+  const history = await storage.get<string[]>(DOMAIN_HISTORY_KEY)
+  return history || []
+}
+
+export const getKeywordHistory = async (): Promise<string[]> => {
+  const history = await storage.get<string[]>(KEYWORD_HISTORY_KEY)
+  return history || []
+}
+
+export const exportDomainHistory = async (): Promise<string> => {
+  const history = await getDomainHistory()
+  return history.join("\n")
+}
+
+export const exportKeywordHistory = async (): Promise<string> => {
+  const history = await getKeywordHistory()
+  return history.join("\n")
 }

@@ -9,7 +9,7 @@ import { UNGROUPED_ID } from "~lib/constants"
 import { extractDomainFromText, queryActiveTab, queryActiveTabUrl, getRootDomain } from "~lib/domain"
 import { t } from "~lib/i18n"
 import { openTab, openTabsInOrder } from "~lib/open"
-import { getConfig, subscribeConfig } from "~lib/storage"
+import { getConfig, subscribeConfig, addDomainToHistory, addKeywordToHistory } from "~lib/storage"
 import { incrementUsageStats } from "~lib/stats"
 import { useToast } from "~lib/toast"
 import type {
@@ -267,6 +267,12 @@ const SidePanel = () => {
 
     void incrementUsageStats({ serviceIds: [service.id] })
 
+    if (mode === "domain" && domain) {
+      void addDomainToHistory(domain)
+    } else if (mode === "text" && textValue) {
+      void addKeywordToHistory(textValue)
+    }
+
     // Get current window ID before opening new tab
     const currentTab = await queryActiveTab()
     const windowId = currentTab?.windowId ?? null
@@ -332,6 +338,13 @@ const SidePanel = () => {
       groupId: group.id,
       serviceIds: services.map((service) => service.id)
     })
+
+    if (mode === "domain" && domain) {
+      void addDomainToHistory(domain)
+    } else if (mode === "text" && textValue) {
+      void addKeywordToHistory(textValue)
+    }
+
     // For group clicks, activate the first tab if active is true
     const activeIndex = active ? 0 : null
 

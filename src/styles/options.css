@@ -391,6 +391,12 @@ body {
   background-color: #f7f4ef;
 }
 
+.dropdown-divider {
+  height: 1px;
+  background-color: rgba(31, 28, 26, 0.1);
+  margin: 4px 0;
+}
+
 .dropdown-item.button-file {
   padding: 10px 12px;
   width: 100%;
