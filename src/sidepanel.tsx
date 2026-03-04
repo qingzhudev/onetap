@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react"
+import { Globe, FileText, Settings } from "lucide-react"
 
 import {
   buildServiceUrl,
@@ -415,11 +416,7 @@ const SidePanel = () => {
               }`}
               title={t("popupModeDomainTooltip")}
               onClick={() => setMode("domain")}>
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="2" y1="12" x2="22" y2="12"></line>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-              </svg>
+              <Globe size={17} />
             </button>
             <button
               className={`popup__mode-tab ${
@@ -427,19 +424,10 @@ const SidePanel = () => {
               }`}
               title={t("popupModeTextTooltip")}
               onClick={() => setMode("text")}>
-              <svg viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <polyline points="14 2 14 8 20 8"></polyline>
-                <line x1="16" y1="13" x2="8" y2="13"></line>
-                <line x1="16" y1="17" x2="8" y2="17"></line>
-                <polyline points="10 9 9 9 8 9"></polyline>
-              </svg>
+              <FileText size={17} />
             </button>
           </div>
         </div>
-        {mode === "text" && (
-          <div className="popup__subtitle">{t("popupTextPlaceholder")}</div>
-        )}
       </header>
 
       <main
@@ -472,22 +460,19 @@ const SidePanel = () => {
           </section>
         )}
         {orderedGroupIds.map((groupId) => {
-          if (groupId === UNGROUPED_ID) {
-            if (ungroupedServices.length === 0) {
-              return null
-            }
+          const isUngrouped = groupId === UNGROUPED_ID
+          const group = isUngrouped
+            ? {
+                id: UNGROUPED_ID,
+                name: t("optionDefaultGroup"),
+                icon: "📋",
+                serviceIds: ungroupedServices.map((s) => s.id)
+              }
+            : config?.groups.find((item) => item.id === groupId)
 
-            return (
-              <section className="group group--standalone" key="ungrouped">
-                <ul className="service-list">
-                  {ungroupedServices.map(renderServiceItem)}
-                </ul>
-              </section>
-            )
-          }
-
-          const group = config?.groups.find((item) => item.id === groupId)
-          const services = group ? groupedServices.get(group.id) : null
+          const services = isUngrouped
+            ? ungroupedServices
+            : (group ? groupedServices.get(group.id) : null)
 
           if (!group || !services?.length) {
             return null
@@ -524,6 +509,7 @@ const SidePanel = () => {
 
       <footer className="popup__footer">
         <button className="popup__manage" onClick={handleOpenOptions}>
+          <Settings size={16} />
           {t("popupManageGroups")}
         </button>
       </footer>

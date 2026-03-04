@@ -110,8 +110,9 @@ body {
 
 .options__header p {
   margin: 0;
-  color: var(--text-secondary);
-  font-size: 14px;
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 500;
 }
 
 .options__actions {
@@ -193,6 +194,12 @@ body {
   gap: 6px;
 }
 
+.dropdown-toggle svg {
+  stroke: currentColor;
+  stroke-width: 1.5;
+  flex-shrink: 0;
+}
+
 .dropdown-menu {
   position: absolute;
   top: 100%;
@@ -261,16 +268,13 @@ body {
   border: 1px solid var(--border);
   padding: 14px 16px;
   box-shadow: var(--shadow-sm);
-  transition: box-shadow var(--transition);
+  transition: box-shadow var(--transition), border-color var(--transition);
+  position: relative;
 }
 
 .group-card:hover {
   box-shadow: var(--shadow-md);
-}
-
-.group-card.ungrouped {
-  background: var(--bg-secondary);
-  border-color: var(--border);
+  border-color: var(--border-strong);
 }
 
 .group-card__header {
@@ -279,6 +283,11 @@ body {
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+}
+
+.group-card__spacer {
+  width: 130px;
+  flex-shrink: 0;
 }
 
 .group-card__title {
@@ -341,7 +350,8 @@ body {
   border-radius: var(--radius-md);
   background: var(--bg-secondary);
   border: 1px solid transparent;
-  transition: all var(--transition);
+  transition: background var(--transition), border-color var(--transition), box-shadow var(--transition);
+  position: relative;
 }
 
 .service-item:hover {
@@ -388,18 +398,20 @@ body {
   cursor: grab;
   font-size: 13px;
   color: var(--text-tertiary);
-  transition: all var(--transition);
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
   flex-shrink: 0;
+  user-select: none;
 }
 
 .drag-handle:hover {
-  color: var(--text-secondary);
-  border-color: var(--border-strong);
-  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--accent-primary);
+  background: var(--accent-light);
   box-shadow: var(--shadow-xs);
 }
 
-.drag-handle:active {
+.drag-handle:active,
+.is-dragging .drag-handle {
   cursor: grabbing;
 }
 
@@ -407,43 +419,61 @@ body {
 .drag-overlay {
   background: var(--accent-primary);
   color: #fff;
-  padding: 8px 12px;
+  padding: 10px 14px;
   border-radius: var(--radius-md);
   font-size: 13px;
   font-weight: 500;
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  cursor: grabbing;
+  pointer-events: none;
 }
 
 /* Drag States */
-.service-item.is-dragging,
+.service-item.is-dragging {
+  opacity: 0.3;
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-primary);
+  background: var(--bg-elevated);
+}
+
 .group-card.is-dragging {
-  opacity: 0.7;
-  box-shadow: var(--shadow-md);
+  opacity: 0.6;
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-primary);
+  background: var(--accent-light);
 }
 
 .insert-indicator {
   position: absolute;
-  left: -4px;
-  right: -4px;
-  height: 2px;
+  left: -6px;
+  right: -6px;
+  height: 3px;
   background: var(--accent-primary);
-  z-index: 100;
+  z-index: 150;
   pointer-events: none;
-  box-shadow: 0 0 8px rgba(15, 23, 42, 0.3);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  border-radius: 1.5px;
+  will-change: opacity, transform;
 }
 
 .insert-indicator--before {
-  top: -3px;
+  top: -4px;
 }
 
 .insert-indicator--after {
-  bottom: -3px;
+  bottom: -4px;
 }
 
 .droppable.is-over {
-  outline: 2px dashed var(--border-strong);
+  outline: 2px dashed var(--accent-primary);
   outline-offset: 3px;
-  background: var(--accent-light);
+  background: rgba(59, 130, 246, 0.03);
+  border-radius: var(--radius-lg);
+  transition: all 0.15s ease-out;
+}
+
+.droppable.is-over .service-item {
+  color: var(--text-primary);
 }
 
 /* Stats */
@@ -625,8 +655,8 @@ body {
     min-width: 0;
   }
 
-  .options__header h1 {
-    font-size: 24px;
+  .options__header p {
+    font-size: 14px;
   }
 
   .group-card__header {

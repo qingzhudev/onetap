@@ -21,6 +21,7 @@ import {
 import { CSS } from "@dnd-kit/utilities"
 import clsx from "clsx"
 import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { Settings } from "lucide-react"
 
 import {
   clampGroupName,
@@ -168,6 +169,7 @@ const SortableGroup = ({
 }
 
 const SortableUngrouped = ({
+  groupId,
   services,
   onRemoveService,
   onDeleteService,
@@ -175,6 +177,7 @@ const SortableUngrouped = ({
   disabled,
   insertPosition
 }: {
+  groupId: string
   services: AnalysisService[]
   onRemoveService: (serviceId: string) => void
   onDeleteService: (serviceId: string) => void
@@ -200,17 +203,17 @@ const SortableUngrouped = ({
     <section
       ref={setNodeRef}
       style={style}
-      className={clsx("group-card ungrouped", isDragging && "is-dragging")}>
-      <header className="group-card__header">
+      className={clsx("group-card", isDragging && "is-dragging")}>
+      <header className="group-card__header group-card__header--no-actions">
         <button className="drag-handle" {...attributes} {...listeners}>
           ⠿
         </button>
         <div className="group-card__title">
-          <span className="group-card__icon">📦</span>
+          <span className="group-card__icon">📋</span>
           <span>{t("defaultGroupName")}</span>
           <span className="group-card__count">({services.length})</span>
         </div>
-        <div className="group-card__actions" />
+        <div className="group-card__spacer" />
       </header>
 
       <SortableContext
@@ -229,11 +232,11 @@ const SortableUngrouped = ({
                 onEdit={onEditService}
                 showRemove={false}
                 insertBefore={
-                  insertPosition?.groupId === null &&
+                  insertPosition?.groupId === groupId &&
                   insertPosition?.beforeServiceId === service.id
                 }
                 insertAfter={
-                  insertPosition?.groupId === null &&
+                  insertPosition?.groupId === groupId &&
                   insertPosition?.afterServiceId === service.id
                 }
               />
@@ -353,7 +356,7 @@ const SortableService = ({
 }
 
 type InsertPosition = {
-  groupId: string | null
+  groupId: string
   beforeServiceId: string | null
   afterServiceId: string | null
 }
@@ -363,6 +366,7 @@ const OptionsPage = () => {
   const [isReady, setIsReady] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [insertPosition, setInsertPosition] = useState<InsertPosition | null>(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [groupIcon, setGroupIcon] = useState(ICONS[0])
   const [modal, setModal] = useState<ModalState | null>(null)
   const [pendingModal, setPendingModal] = useState<ModalState | null>(null)
@@ -386,7 +390,7 @@ const OptionsPage = () => {
   }, [])
 
   useEffect(() => {
-    if (!isReady) {
+    if (!isReady || isDragging) {
       return
     }
 
@@ -395,7 +399,7 @@ const OptionsPage = () => {
     }, 200)
 
     return () => window.clearTimeout(timer)
-  }, [config, isReady])
+  }, [config, isReady, isDragging])
 
   useEffect(() => {
     if (!modal && pendingModal) {
@@ -434,7 +438,12 @@ const OptionsPage = () => {
   )
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+        delay: 100
+      }
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates
     })
@@ -592,7 +601,7 @@ const OptionsPage = () => {
 
   const handleRemoveServiceFromGroup = (serviceId: string) => {
     const groupId = findServiceGroupId(config, serviceId)
-    if (!groupId) {
+    if (groupId === null || groupId === UNGROUPED_ID) {
       notify(t("serviceAlreadyDefault"))
       return
     }
@@ -967,14 +976,21 @@ const OptionsPage = () => {
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id))
     setInsertPosition(null)
+    setIsDragging(true)
   }
 
   const handleDragOver = (event: DragOverEvent) => {
     const active = String(event.active.id)
     const over = event.over ? String(event.over.id) : null
 
-    if (!isServiceId(active)) {
+    // Early return if not over anything
+    if (!over) {
       setInsertPosition(null)
+      return
+    }
+
+    // Handle group dragging - just return, let @dnd-kit handle it
+    if (!isServiceId(active)) {
       return
     }
 
@@ -986,32 +1002,41 @@ const OptionsPage = () => {
     if (isServiceId(over)) {
       const overServiceId = stripPrefix(over, SERVICE_PREFIX)
       targetGroupId = findServiceGroupId(config, overServiceId)
-      if (targetGroupId === UNGROUPED_ID) {
-        targetGroupId = null
+      // Keep UNGROUPED_ID as-is, don't convert to null
+      if (targetGroupId === null) {
+        targetGroupId = UNGROUPED_ID
       }
-
       beforeServiceId = overServiceId
     } else if (isContainerId(over)) {
       targetGroupId = stripPrefix(over, CONTAINER_PREFIX)
-      if (targetGroupId === UNGROUPED_ID) {
-        targetGroupId = null
-      }
-      const group = targetGroupId ? findGroupById(config, targetGroupId) : null
+      const group = findGroupById(config, targetGroupId)
       if (group && group.serviceIds.length > 0) {
         afterServiceId = group.serviceIds[group.serviceIds.length - 1]
       }
     } else if (isGroupId(over)) {
       targetGroupId = stripPrefix(over, GROUP_PREFIX)
-      if (targetGroupId === UNGROUPED_ID) {
-        targetGroupId = null
-      }
-      const group = targetGroupId ? findGroupById(config, targetGroupId) : null
+      const group = findGroupById(config, targetGroupId)
       if (group && group.serviceIds.length > 0) {
         afterServiceId = group.serviceIds[group.serviceIds.length - 1]
       }
     }
 
-    setInsertPosition({ groupId: targetGroupId, beforeServiceId, afterServiceId })
+    // Only update if position actually changed
+    setInsertPosition((prev) => {
+      if (!prev) {
+        return { groupId: targetGroupId, beforeServiceId, afterServiceId }
+      }
+
+      if (
+        prev.groupId === targetGroupId &&
+        prev.beforeServiceId === beforeServiceId &&
+        prev.afterServiceId === afterServiceId
+      ) {
+        return prev // No change, avoid re-render
+      }
+
+      return { groupId: targetGroupId, beforeServiceId, afterServiceId }
+    })
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -1020,6 +1045,7 @@ const OptionsPage = () => {
 
     setActiveId(null)
     setInsertPosition(null)
+    setIsDragging(false)
 
     if (!over || active === over) {
       return
@@ -1045,24 +1071,20 @@ const OptionsPage = () => {
     }
 
     const activeServiceId = stripPrefix(active, SERVICE_PREFIX)
-    const sourceGroupId = findServiceGroupId(config, activeServiceId)
+    const sourceGroupId = findServiceGroupId(config, activeServiceId) ?? UNGROUPED_ID
     let targetGroupId: string | null = null
 
     if (isServiceId(over)) {
       const overServiceId = stripPrefix(over, SERVICE_PREFIX)
-      targetGroupId = findServiceGroupId(config, overServiceId)
+      targetGroupId = findServiceGroupId(config, overServiceId) ?? UNGROUPED_ID
     } else if (isContainerId(over)) {
       targetGroupId = stripPrefix(over, CONTAINER_PREFIX)
     } else if (isGroupId(over)) {
       targetGroupId = stripPrefix(over, GROUP_PREFIX)
     }
 
-    if (targetGroupId === UNGROUPED_ID) {
-      targetGroupId = null
-    }
-
     if (sourceGroupId === targetGroupId) {
-      if (!targetGroupId) {
+      if (targetGroupId === UNGROUPED_ID) {
         const overServiceId = isServiceId(over)
           ? stripPrefix(over, SERVICE_PREFIX)
           : null
@@ -1135,10 +1157,10 @@ const OptionsPage = () => {
     }
 
     setConfig((prev) => {
-      const sourceGroup = sourceGroupId
+      const sourceGroup = sourceGroupId !== UNGROUPED_ID
         ? findGroupById(prev, sourceGroupId)
         : null
-      const targetGroup = targetGroupId
+      const targetGroup = targetGroupId !== UNGROUPED_ID
         ? findGroupById(prev, targetGroupId)
         : null
 
@@ -1218,16 +1240,16 @@ const OptionsPage = () => {
     <div className="options">
       <header className="options__header">
         <div>
-          <h1>⚙️ {t("headerTitle")}</h1>
           <p>{t("headerSubtitle")}</p>
         </div>
         <div className="options__actions">
           <div className="dropdown">
-            <button 
+            <button
               className="primary is-compact dropdown-toggle"
               onClick={() => setShowConfigMenu(!showConfigMenu)}
             >
-              ⚙️ {t("optionsSettings")}
+              <Settings size={16} />
+              {t("optionsSettings")}
             </button>
             {showConfigMenu && (
               <div className="dropdown-menu">
@@ -1310,6 +1332,7 @@ const OptionsPage = () => {
                 return (
                   <DroppableContainer key={UNGROUPED_ID} id={UNGROUPED_ID}>
                     <SortableUngrouped
+                      groupId={UNGROUPED_ID}
                       services={ungroupedServices}
                       onRemoveService={handleRemoveServiceFromGroup}
                       onDeleteService={handleDeleteService}
