@@ -121,6 +121,25 @@ body {
   gap: 8px;
   margin-left: auto;
   align-self: flex-end;
+  position: relative;
+}
+
+.options__footer {
+  padding: 12px 20px;
+}
+
+.options__footer-help {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.options__footer-help strong {
+  color: var(--text-primary);
+  font-weight: 500;
 }
 
 /* Buttons */
@@ -149,6 +168,27 @@ body {
 }
 
 .primary.is-compact {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.secondary {
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  padding: 8px 14px;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 14px;
+  transition: all var(--transition);
+}
+
+.secondary:hover {
+  background: var(--bg-secondary);
+}
+
+.secondary.is-compact {
   padding: 6px 12px;
   font-size: 13px;
 }
@@ -243,6 +283,37 @@ body {
   margin: 4px 0;
 }
 
+.dropdown-help {
+  padding: 8px 12px;
+}
+
+.dropdown-help__title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  margin: 0 0 8px;
+}
+
+.dropdown-help p {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 0 4px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.dropdown-help p:last-child {
+  margin-bottom: 0;
+}
+
+.dropdown-help strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
 .dropdown-item.button-file {
   padding: 8px 12px;
   width: 100%;
@@ -252,6 +323,37 @@ body {
 .button-file {
   display: inline-block;
   cursor: pointer;
+}
+
+.help-popover {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-lg);
+  min-width: 220px;
+  z-index: 1000;
+}
+
+.help-popover__content {
+  padding: 12px;
+}
+
+.help-popover__content p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.help-popover__content p:last-child {
+  margin-bottom: 0;
+}
+
+.help-popover__content strong {
+  color: var(--text-primary);
 }
 
 /* Groups */

@@ -20,7 +20,7 @@ import {
 } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
 import clsx from "clsx"
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Settings } from "lucide-react"
 
 import {
@@ -34,6 +34,7 @@ import {
   ICONS,
   MAX_GROUP_COUNT,
   MAX_GROUP_NAME_LENGTH,
+  MAX_HISTORY_ITEMS,
   MAX_SERVICE_COUNT,
   MAX_SERVICES_PER_GROUP_COUNT,
   UNGROUPED_ID
@@ -370,7 +371,21 @@ const OptionsPage = () => {
   const [modal, setModal] = useState<ModalState | null>(null)
   const [pendingModal, setPendingModal] = useState<ModalState | null>(null)
   const [showConfigMenu, setShowConfigMenu] = useState(false)
+  const configMenuRef = useRef<HTMLDivElement>(null)
   const { toasts, notify } = useToast()
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (configMenuRef.current && !configMenuRef.current.contains(event.target as Node)) {
+        setShowConfigMenu(false)
+      }
+    }
+
+    if (showConfigMenu) {
+      document.addEventListener("mousedown", handleClickOutside)
+      return () => document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [showConfigMenu])
 
   useEffect(() => {
     let isMounted = true
@@ -1137,7 +1152,7 @@ const OptionsPage = () => {
           <p>{t("headerSubtitle")}</p>
         </div>
         <div className="options__actions">
-          <div className="dropdown">
+          <div className="dropdown" ref={configMenuRef}>
             <button
               className="primary is-compact dropdown-toggle"
               onClick={() => setShowConfigMenu(!showConfigMenu)}
@@ -1319,6 +1334,15 @@ const OptionsPage = () => {
           onConfirm={() => setModal(null)}
         />
       ) : null}
+
+      <footer className="options__footer">
+        <div className="options__footer-help">
+          <span>{t("helpMaxGroups")}: {MAX_GROUP_COUNT}</span>
+          <span>{t("helpMaxServices")}: {MAX_SERVICE_COUNT}</span>
+          <span>{t("helpMaxServicesPerGroup")}: {MAX_SERVICES_PER_GROUP_COUNT}</span>
+          <span>{t("helpMaxHistoryItems")}: {MAX_HISTORY_ITEMS}</span>
+        </div>
+      </footer>
     </div>
   )
 }
