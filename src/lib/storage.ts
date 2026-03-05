@@ -1,6 +1,7 @@
 import { Storage } from "@plasmohq/storage"
 
 import { createDefaultConfig, normalizeConfig } from "./config"
+import { MAX_HISTORY_ITEMS } from "./constants"
 import type { LastOperation, OperationMode, UserConfig } from "./types"
 
 const storage = new Storage({ area: "local" })
@@ -9,7 +10,6 @@ const LAST_OP_DOMAIN_KEY = "onetap:last_op:domain"
 const LAST_OP_TEXT_KEY = "onetap:last_op:text"
 const DOMAIN_HISTORY_KEY = "onetap:history:domains"
 const KEYWORD_HISTORY_KEY = "onetap:history:keywords"
-const MAX_HISTORY_ITEMS = 1000
 
 export const getConfig = async (): Promise<UserConfig> => {
   const stored = await storage.get<UserConfig>(CONFIG_KEY)
