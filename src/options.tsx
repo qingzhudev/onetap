@@ -25,7 +25,6 @@ import { Settings } from "lucide-react"
 
 import {
   clampGroupName,
-  createDefaultConfig,
   createInitialConfig,
   getOrderedGroups,
   getUngroupedServices,
@@ -33,10 +32,10 @@ import {
 } from "~lib/config"
 import {
   ICONS,
-  MAX_GROUPS,
-  MAX_GROUP_NAME,
-  MAX_SERVICES,
-  MAX_SERVICES_PER_GROUP,
+  MAX_GROUP_COUNT,
+  MAX_GROUP_NAME_LENGTH,
+  MAX_SERVICE_COUNT,
+  MAX_SERVICES_PER_GROUP_COUNT,
   UNGROUPED_ID
 } from "~lib/constants"
 import { createId } from "~lib/id"
@@ -452,7 +451,7 @@ const OptionsPage = () => {
   const openCreateGroupModal = (
     afterCreate?: (newGroupId: string) => void
   ) => {
-    if (config.groups.length >= MAX_GROUPS) {
+    if (config.groups.length >= MAX_GROUP_COUNT) {
       notify(t("maxGroupsReached"))
       return false
     }
@@ -469,7 +468,7 @@ const OptionsPage = () => {
           return false
         }
 
-        if (config.groups.length >= MAX_GROUPS) {
+        if (config.groups.length >= MAX_GROUP_COUNT) {
           notify(t("maxGroupsReached"))
           return false
         }
@@ -643,7 +642,7 @@ const OptionsPage = () => {
   }
 
   const addService = (name: string, url: string, groupId: string) => {
-    if (config.services.length >= MAX_SERVICES) {
+    if (config.services.length >= MAX_SERVICE_COUNT) {
       notify(t("maxServicesReached"))
       return false
     }
@@ -679,7 +678,7 @@ const OptionsPage = () => {
       if (groupId !== UNGROUPED_ID) {
         const targetGroup = findGroupById(prev, groupId)
         if (targetGroup) {
-          if (targetGroup.serviceIds.length >= MAX_SERVICES_PER_GROUP) {
+          if (targetGroup.serviceIds.length >= MAX_SERVICES_PER_GROUP_COUNT) {
             notify(t("groupServiceLimitReached"))
             return prev
           }
@@ -733,7 +732,7 @@ const OptionsPage = () => {
       if (
         targetGroup &&
         !isSameGroup &&
-        targetGroup.serviceIds.length >= MAX_SERVICES_PER_GROUP
+        targetGroup.serviceIds.length >= MAX_SERVICES_PER_GROUP_COUNT
       ) {
         notify(t("groupServiceLimitReached"))
         return prev
@@ -778,111 +777,6 @@ const OptionsPage = () => {
     })
 
     return true
-  }
-
-  const handleImportDefaults = () => {
-    const defaults = createDefaultConfig()
-    const defaultServiceMap = new Map(
-      defaults.services.map((service) => [service.id, service])
-    )
-    const nextGroups = config.groups.map((group) => ({
-      ...group,
-      serviceIds: [...group.serviceIds]
-    }))
-    const nextGroupOrder = [...config.groupOrder]
-    const nextServices = [...config.services]
-    const groupByName = new Map(
-      nextGroups.map((group) => [group.name.trim(), group])
-    )
-    const serviceByTemplate = new Map(
-      nextServices.map((service) => [service.urlTemplate.trim().toLowerCase(), service])
-    )
-    const serviceByName = new Map(
-      nextServices.map((service) => [service.name.trim(), service])
-    )
-
-    let addedGroups = 0
-    let addedServices = 0
-
-    defaults.groups.forEach((defaultGroup) => {
-      const groupKey = defaultGroup.name.trim()
-      let targetGroup = groupByName.get(groupKey)
-
-      if (!targetGroup) {
-        if (nextGroups.length >= MAX_GROUPS) {
-          return
-        }
-
-        targetGroup = {
-          id: createId(),
-          name: defaultGroup.name,
-          icon: defaultGroup.icon,
-          order: nextGroups.length,
-          serviceIds: []
-        }
-
-        nextGroups.push(targetGroup)
-        if (!nextGroupOrder.includes(targetGroup.id)) {
-          const nextOrder = appendGroupId(nextGroupOrder, targetGroup.id)
-          nextGroupOrder.splice(0, nextGroupOrder.length, ...nextOrder)
-        }
-        groupByName.set(groupKey, targetGroup)
-        addedGroups += 1
-      }
-
-      defaultGroup.serviceIds.forEach((serviceId) => {
-        const defaultService = defaultServiceMap.get(serviceId)
-        if (!defaultService) {
-          return
-        }
-
-        const templateKey = defaultService.urlTemplate.trim().toLowerCase()
-        const nameKey = defaultService.name.trim()
-        if (serviceByTemplate.has(templateKey) || serviceByName.has(nameKey)) {
-          return
-        }
-
-        if (nextServices.length >= MAX_SERVICES) {
-          return
-        }
-
-        const newService: AnalysisService = {
-          id: createId(),
-          name: defaultService.name,
-          urlTemplate: defaultService.urlTemplate,
-          createdAt: new Date().toISOString(),
-          supportedVariables:
-            defaultService.supportedVariables ||
-            inferSupportedVariables(defaultService.urlTemplate)
-        }
-
-        nextServices.push(newService)
-        serviceByTemplate.set(templateKey, newService)
-        serviceByName.set(nameKey, newService)
-        addedServices += 1
-
-        if (
-          targetGroup &&
-          targetGroup.serviceIds.length < MAX_SERVICES_PER_GROUP
-        ) {
-          targetGroup.serviceIds.push(newService.id)
-        }
-      })
-    })
-
-    if (addedGroups === 0 && addedServices === 0) {
-      notify(t("sampleExists"))
-      return
-    }
-
-    setConfig({
-      ...config,
-      groups: nextGroups,
-      groupOrder: nextGroupOrder,
-      services: nextServices
-    })
-
-    notify(t("importedSamples", { groups: addedGroups, services: addedServices }))
   }
 
   const handleExport = async () => {
@@ -1164,7 +1058,7 @@ const OptionsPage = () => {
         ? findGroupById(prev, targetGroupId)
         : null
 
-      if (targetGroup && targetGroup.serviceIds.length >= MAX_SERVICES_PER_GROUP) {
+      if (targetGroup && targetGroup.serviceIds.length >= MAX_SERVICES_PER_GROUP_COUNT) {
         notify(t("targetGroupServiceLimitReached"))
         return prev
       }
@@ -1274,15 +1168,6 @@ const OptionsPage = () => {
                     style={{ display: "none" }}
                   />
                 </label>
-                <button 
-                  className="dropdown-item"
-                  onClick={() => {
-                    handleImportDefaults()
-                    setShowConfigMenu(false)
-                  }}
-                >
-                  Import Sample Configs
-                </button>
                 <div className="dropdown-divider" />
                 <button 
                   className="dropdown-item"
@@ -1576,7 +1461,7 @@ const Modal = ({
               <input
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                maxLength={MAX_GROUP_NAME}
+                maxLength={MAX_GROUP_NAME_LENGTH}
                 placeholder={t("placeholderGroupName")}
               />
               <select
@@ -1595,7 +1480,7 @@ const Modal = ({
               <input
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                maxLength={MAX_GROUP_NAME}
+                maxLength={MAX_GROUP_NAME_LENGTH}
                 placeholder={t("placeholderGroupName")}
               />
             </>

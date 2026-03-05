@@ -1,6 +1,4 @@
-import { ICONS, MAX_GROUPS, MAX_GROUP_NAME, UNGROUPED_ID } from "./constants"
-import { t } from "./i18n"
-import { createId } from "./id"
+import { MAX_GROUP_COUNT, MAX_GROUP_NAME_LENGTH, UNGROUPED_ID } from "./constants"
 import type {
   AnalysisService,
   LastOperation,
@@ -16,60 +14,8 @@ export const inferSupportedVariables = (template: string) => ({
   text: template.includes("{text}")
 })
 
-const createService = (name: string, urlTemplate: string): AnalysisService => ({
-  id: createId(),
-  name,
-  urlTemplate,
-  createdAt: now(),
-  supportedVariables: inferSupportedVariables(urlTemplate)
-})
-
-const createGroup = (name: string, icon: string, order: number): ServiceGroup => ({
-  id: createId(),
-  name,
-  icon,
-  order,
-  serviceIds: []
-})
-
 export const createDefaultConfig = (): UserConfig => {
-  const seoGroup = createGroup(t("sampleGroupSeo"), ICONS[0], 0)
-  const techGroup = createGroup(t("sampleGroupTech"), ICONS[3], 1)
-  const safetyGroup = createGroup(t("sampleGroupSecurity"), ICONS[2], 2)
-
-  const services = [
-    createService(
-      t("sampleServiceAhrefs"),
-      "https://ahrefs.com/backlink-checker/?input={domain}&mode=subdomains"
-    ),
-    createService(
-      t("sampleServiceSimilarWeb"),
-      "https://similarweb.com/website/{domain}"
-    ),
-    createService(
-      t("sampleServiceBuiltWith"),
-      "https://builtwith.com/{domain}"
-    ),
-    createService(
-      t("sampleServiceSecurityHeaders"),
-      "https://securityheaders.com/?q={domain}"
-    ),
-    createService(t("sampleServiceWhois"), "https://whois.domaintools.com/{domain}")
-  ]
-
-  seoGroup.serviceIds.push(services[0].id, services[1].id)
-  techGroup.serviceIds.push(services[2].id, services[4].id)
-  safetyGroup.serviceIds.push(services[3].id)
-
-  const groups = [seoGroup, techGroup, safetyGroup]
-
-  return {
-    services,
-    groups,
-    groupOrder: [UNGROUPED_ID, ...groups.map((group) => group.id)],
-    preferences: createDefaultPreferences(),
-    lastOperations: createDefaultLastOperations()
-  }
+  return createInitialConfig()
 }
 
 export const createInitialConfig = (): UserConfig => ({
@@ -109,7 +55,7 @@ export const normalizeConfig = (config?: UserConfig | null): UserConfig => {
   })
 
   const serviceIds = new Set(normalizedServices.map((service) => service.id))
-  const normalizedGroups = groups.slice(0, MAX_GROUPS).map((group, index) => ({
+  const normalizedGroups = groups.slice(0, MAX_GROUP_COUNT).map((group, index) => ({
     ...group,
     order: index,
     serviceIds: (group.serviceIds || []).filter((id) => serviceIds.has(id))
@@ -198,7 +144,7 @@ export const getOrderedGroups = (config: UserConfig) => {
     .filter((group): group is ServiceGroup => Boolean(group))
 }
 
-export const clampGroupName = (name: string) => name.trim().slice(0, MAX_GROUP_NAME)
+export const clampGroupName = (name: string) => name.trim().slice(0, MAX_GROUP_NAME_LENGTH)
 
 const createDefaultPreferences = (): Preferences => ({
   closeSidePanelAfterOpen: "batch-only"

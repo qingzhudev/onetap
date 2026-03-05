@@ -17,7 +17,7 @@ export const getConfig = async (): Promise<UserConfig> => {
     return normalizeConfig(stored)
   }
 
-  // First time installation - create default config with sample services
+  // First time installation - create empty default config
   console.log("[OneTap Storage] No config found, creating default config")
   const defaultConfig = createDefaultConfig()
   await storage.set(CONFIG_KEY, defaultConfig)
