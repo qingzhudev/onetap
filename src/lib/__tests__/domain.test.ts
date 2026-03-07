@@ -68,7 +68,9 @@ describe("isDomainLike", () => {
     it("rejects empty and whitespace", () => {
       expect(isDomainLike("")).toBe(false)
       expect(isDomainLike("   ")).toBe(false)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(isDomainLike(null as any)).toBe(false)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(isDomainLike(undefined as any)).toBe(false)
     })
 
@@ -123,7 +125,9 @@ describe("extractDomainFromText", () => {
     it("returns null for empty and whitespace", () => {
       expect(extractDomainFromText("")).toBeNull()
       expect(extractDomainFromText("   ")).toBeNull()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(extractDomainFromText(null as any)).toBeNull()
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       expect(extractDomainFromText(undefined as any)).toBeNull()
     })
 

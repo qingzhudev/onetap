@@ -68,6 +68,7 @@ const SidePanel = () => {
     }
   }
 
+  /* eslint-disable react-hooks/exhaustive-deps */
   useEffect(() => {
     let isMounted = true
 
@@ -100,6 +101,7 @@ const SidePanel = () => {
       unsubscribe()
     }
   }, [])
+  /* eslint-disable react-hooks/exhaustive-deps */
 
   useEffect(() => {
     if (typeof chrome === "undefined" || !chrome.runtime?.onMessage) {
@@ -125,8 +127,6 @@ const SidePanel = () => {
       return
     }
 
-    let intervalId: NodeJS.Timeout
-
     const checkSelection = async () => {
       const currentSelection = await fetchSelectedText()
       const trimmedSelection = currentSelection?.trim() || null
@@ -137,15 +137,12 @@ const SidePanel = () => {
       }
     }
 
-    // Check selection every 500ms for better responsiveness
-    intervalId = setInterval(checkSelection, 500)
+    const intervalId = setInterval(checkSelection, 500)
 
     return () => {
-      if (intervalId) {
-        clearInterval(intervalId)
-      }
+      clearInterval(intervalId)
     }
-  }, [mode]) // Only re-create effect when mode changes to avoid missing changes
+  }, [mode])
 
   const handleTabChange = async () => {
     const tabUrl = await queryActiveTabUrl()

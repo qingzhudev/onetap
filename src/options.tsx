@@ -9,7 +9,6 @@ import {
   useDroppable,
   useSensor,
   useSensors,
-  type ClientRect
 } from "@dnd-kit/core"
 import {
   SortableContext,
@@ -903,7 +902,6 @@ const OptionsPage = () => {
       return
     }
 
-    const activeServiceId = stripPrefix(active, SERVICE_PREFIX)
     let targetGroupId: string | null = null
     let beforeServiceId: string | null = null
     let afterServiceId: string | null = null
