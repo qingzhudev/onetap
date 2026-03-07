@@ -375,8 +375,19 @@ const SidePanel = () => {
   }
 
   const handleOpenOptions = async () => {
+    const currentTab = await queryActiveTab()
+    const windowId = currentTab?.windowId ?? null
+
     if (chrome?.runtime?.openOptionsPage) {
       await chrome.runtime.openOptionsPage()
+    }
+
+    if (windowId) {
+      chrome.runtime.sendMessage({
+        type: "CLOSE_SIDEPANEL",
+        windowId
+      }).catch(() => {
+      })
     }
   }
 
@@ -491,7 +502,7 @@ const SidePanel = () => {
                         })
                       )
                     }
-                    onMouseDown={handleGroupClick(group)}>
+                    onMouseDown={handleGroupClick(group as ServiceGroup)}>
                     <span>{group.icon}</span>
                   </button>
                 <div className="group__title">
