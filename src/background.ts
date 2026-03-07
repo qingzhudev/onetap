@@ -56,13 +56,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === "CLOSE_SIDEPANEL") {
     const { windowId } = message
     if (windowId && chrome.sidePanel) {
-      // Use the correct close() API
-      chrome.sidePanel.close({ windowId })
-        .then(() => sendResponse({ success: true }))
-        .catch((error) => {
-          console.error("[OneTap Background] Failed to close sidepanel:", error)
-          sendResponse({ success: false, error: error?.message })
-        })
+      const sidePanel = chrome.sidePanel as typeof chrome.sidePanel & {
+        close: (options: { windowId: number }) => Promise<void>
+      }
+      if (typeof sidePanel.close === "function") {
+        sidePanel.close({ windowId })
+          .then(() => sendResponse({ success: true }))
+          .catch((error) => {
+            console.error("[OneTap Background] Failed to close sidepanel:", error)
+            sendResponse({ success: false, error: error?.message })
+          })
+      } else {
+        sendResponse({ success: false, error: "sidePanel.close not available" })
+      }
     } else {
       sendResponse({ success: false, error: "Invalid windowId or sidePanel not available" })
     }
