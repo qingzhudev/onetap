@@ -36,7 +36,7 @@ import {
   MAX_HISTORY_ITEMS,
   MAX_SERVICE_COUNT,
   MAX_SERVICES_PER_GROUP_COUNT,
-  UNGROUPED_ID
+  DEFAULT_GROUP_ID
 } from "~lib/constants"
 import { createId } from "~lib/id"
 import { t } from "~lib/i18n"
@@ -191,7 +191,7 @@ const SortableUngrouped = ({
     transform,
     transition,
     isDragging
-  } = useSortable({ id: asGroupDragId(UNGROUPED_ID), disabled })
+  } = useSortable({ id: asGroupDragId(DEFAULT_GROUP_ID), disabled })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -422,7 +422,7 @@ const OptionsPage = () => {
   }, [modal, pendingModal])
 
   const ensureHasDefault = (order: string[]) =>
-    order.includes(UNGROUPED_ID) ? order : [UNGROUPED_ID, ...order]
+    order.includes(DEFAULT_GROUP_ID) ? order : [DEFAULT_GROUP_ID, ...order]
 
   const appendGroupId = (order: string[], groupId: string) =>
     ensureHasDefault([...order.filter((id) => id !== groupId), groupId])
@@ -431,9 +431,9 @@ const OptionsPage = () => {
   const orderedGroupIds = useMemo(() => {
     const order = config.groupOrder.length
       ? config.groupOrder
-      : [UNGROUPED_ID]
+      : [DEFAULT_GROUP_ID]
     return ensureHasDefault(
-      order.includes(UNGROUPED_ID) ? order : [...order, UNGROUPED_ID]
+      order.includes(DEFAULT_GROUP_ID) ? order : [...order, DEFAULT_GROUP_ID]
     )
   }, [config.groupOrder])
 
@@ -522,7 +522,7 @@ const OptionsPage = () => {
     title: t("modalTitleAddService"),
     initialName: draft?.name ?? "",
     initialUrl: draft?.url ?? "",
-    initialGroupId: draft?.groupId ?? UNGROUPED_ID,
+    initialGroupId: draft?.groupId ?? DEFAULT_GROUP_ID,
     onConfirm: (name, url, groupId) => addService(name, url, groupId)
   })
 
@@ -552,7 +552,7 @@ const OptionsPage = () => {
       return
     }
 
-    const currentGroup = findServiceGroupId(config, serviceId) ?? UNGROUPED_ID
+    const currentGroup = findServiceGroupId(config, serviceId) ?? DEFAULT_GROUP_ID
     setModal(
       buildEditServiceModal({
         serviceId,
@@ -614,7 +614,7 @@ const OptionsPage = () => {
 
   const handleRemoveServiceFromGroup = (serviceId: string) => {
     const groupId = findServiceGroupId(config, serviceId)
-    if (groupId === null || groupId === UNGROUPED_ID) {
+    if (groupId === null || groupId === DEFAULT_GROUP_ID) {
       notify(t("serviceAlreadyDefault"))
       return
     }
@@ -689,7 +689,7 @@ const OptionsPage = () => {
         services: [...prev.services, newService]
       }
 
-      if (groupId !== UNGROUPED_ID) {
+      if (groupId !== DEFAULT_GROUP_ID) {
         const targetGroup = findGroupById(prev, groupId)
         if (targetGroup) {
           if (targetGroup.serviceIds.length >= MAX_SERVICES_PER_GROUP_COUNT) {
@@ -734,7 +734,7 @@ const OptionsPage = () => {
       return false
     }
 
-    const targetGroupId = groupId === UNGROUPED_ID ? null : groupId
+    const targetGroupId = groupId === DEFAULT_GROUP_ID ? null : groupId
 
     setConfig((prev) => {
       const sourceGroupId = findServiceGroupId(prev, serviceId)
@@ -909,9 +909,9 @@ const OptionsPage = () => {
     if (isServiceId(over)) {
       const overServiceId = stripPrefix(over, SERVICE_PREFIX)
       targetGroupId = findServiceGroupId(config, overServiceId)
-      // Keep UNGROUPED_ID as-is, don't convert to null
+      // Keep DEFAULT_GROUP_ID as-is, don't convert to null
       if (targetGroupId === null) {
-        targetGroupId = UNGROUPED_ID
+        targetGroupId = DEFAULT_GROUP_ID
       }
       beforeServiceId = overServiceId
     } else if (isContainerId(over)) {
@@ -978,12 +978,12 @@ const OptionsPage = () => {
     }
 
     const activeServiceId = stripPrefix(active, SERVICE_PREFIX)
-    const sourceGroupId = findServiceGroupId(config, activeServiceId) ?? UNGROUPED_ID
+    const sourceGroupId = findServiceGroupId(config, activeServiceId) ?? DEFAULT_GROUP_ID
     let targetGroupId: string | null = null
 
     if (isServiceId(over)) {
       const overServiceId = stripPrefix(over, SERVICE_PREFIX)
-      targetGroupId = findServiceGroupId(config, overServiceId) ?? UNGROUPED_ID
+      targetGroupId = findServiceGroupId(config, overServiceId) ?? DEFAULT_GROUP_ID
     } else if (isContainerId(over)) {
       targetGroupId = stripPrefix(over, CONTAINER_PREFIX)
     } else if (isGroupId(over)) {
@@ -991,7 +991,7 @@ const OptionsPage = () => {
     }
 
     if (sourceGroupId === targetGroupId) {
-      if (targetGroupId === UNGROUPED_ID) {
+      if (targetGroupId === DEFAULT_GROUP_ID) {
         const overServiceId = isServiceId(over)
           ? stripPrefix(over, SERVICE_PREFIX)
           : null
@@ -1064,10 +1064,10 @@ const OptionsPage = () => {
     }
 
     setConfig((prev) => {
-      const sourceGroup = sourceGroupId !== UNGROUPED_ID
+      const sourceGroup = sourceGroupId !== DEFAULT_GROUP_ID
         ? findGroupById(prev, sourceGroupId)
         : null
-      const targetGroup = targetGroupId !== UNGROUPED_ID
+      const targetGroup = targetGroupId !== DEFAULT_GROUP_ID
         ? findGroupById(prev, targetGroupId)
         : null
 
@@ -1127,7 +1127,7 @@ const OptionsPage = () => {
 
     if (isGroupId(activeId)) {
       const groupId = stripPrefix(activeId, GROUP_PREFIX)
-      if (groupId === UNGROUPED_ID) {
+      if (groupId === DEFAULT_GROUP_ID) {
         return t("dragOverlayDefaultGroup")
       }
 
@@ -1223,14 +1223,14 @@ const OptionsPage = () => {
           strategy={verticalListSortingStrategy}>
           <div className="group-list">
             {orderedGroupIds.map((groupId) => {
-              if (groupId === UNGROUPED_ID) {
+              if (groupId === DEFAULT_GROUP_ID) {
                 if (ungroupedServices.length === 0) {
                   return null
                 }
                 return (
-                  <DroppableContainer key={UNGROUPED_ID} id={UNGROUPED_ID}>
+                  <DroppableContainer key={DEFAULT_GROUP_ID} id={DEFAULT_GROUP_ID}>
                     <SortableUngrouped
-                      groupId={UNGROUPED_ID}
+                      groupId={DEFAULT_GROUP_ID}
                       services={ungroupedServices}
                       onRemoveService={handleRemoveServiceFromGroup}
                       onDeleteService={handleDeleteService}
@@ -1383,7 +1383,7 @@ const Modal = ({
   const [groupId, setGroupId] = useState(
     modal.type === "edit-service" || modal.type === "create-service"
       ? modal.initialGroupId
-      : UNGROUPED_ID
+      : DEFAULT_GROUP_ID
   )
   const [icon, setIcon] = useState(
     modal.type === "create-group" ? modal.initialIcon : ICONS[0]
@@ -1466,7 +1466,7 @@ const Modal = ({
                   }
                   setGroupId(nextValue)
                 }}>
-                <option value={UNGROUPED_ID}>{t("optionDefaultGroup")}</option>
+                <option value={DEFAULT_GROUP_ID}>{t("optionDefaultGroup")}</option>
                 {groups.map((group) => (
                   <option key={group.id} value={group.id}>
                     {group.icon} {group.name}

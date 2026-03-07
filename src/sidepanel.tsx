@@ -6,7 +6,7 @@ import {
   getOrderedGroups,
   getUngroupedServices
 } from "~lib/config"
-import { UNGROUPED_ID } from "~lib/constants"
+import { DEFAULT_GROUP_ID } from "~lib/constants"
 import { extractDomainFromText, queryActiveTab, queryActiveTabUrl, getRootDomain } from "~lib/domain"
 import { t } from "~lib/i18n"
 import { openTab, openTabsInOrder } from "~lib/open"
@@ -194,9 +194,9 @@ const SidePanel = () => {
 
     const order = config.groupOrder.length
       ? config.groupOrder
-      : [UNGROUPED_ID]
+      : [DEFAULT_GROUP_ID]
 
-    return order.includes(UNGROUPED_ID) ? order : [...order, UNGROUPED_ID]
+    return order.includes(DEFAULT_GROUP_ID) ? order : [...order, DEFAULT_GROUP_ID]
   }, [config])
 
   const visibleServices = useMemo(() => {
@@ -468,10 +468,10 @@ const SidePanel = () => {
           </section>
         )}
         {orderedGroupIds.map((groupId) => {
-          const isUngrouped = groupId === UNGROUPED_ID
+          const isUngrouped = groupId === DEFAULT_GROUP_ID
           const group = isUngrouped
             ? {
-                id: UNGROUPED_ID,
+                id: DEFAULT_GROUP_ID,
                 name: t("optionDefaultGroup"),
                 icon: "📋",
                 serviceIds: ungroupedServices.map((s) => s.id)

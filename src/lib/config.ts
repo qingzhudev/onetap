@@ -1,4 +1,4 @@
-import { MAX_GROUP_COUNT, MAX_GROUP_NAME_LENGTH, UNGROUPED_ID } from "./constants"
+import { MAX_GROUP_COUNT, MAX_GROUP_NAME_LENGTH, DEFAULT_GROUP_ID } from "./constants"
 import type {
   AnalysisService,
   LastOperation,
@@ -21,7 +21,7 @@ export const createDefaultConfig = (): UserConfig => {
 export const createInitialConfig = (): UserConfig => ({
   services: [],
   groups: [],
-  groupOrder: [UNGROUPED_ID],
+  groupOrder: [DEFAULT_GROUP_ID],
   preferences: createDefaultPreferences(),
   lastOperations: createDefaultLastOperations()
 })
@@ -63,7 +63,7 @@ export const normalizeConfig = (config?: UserConfig | null): UserConfig => {
 
   const groupIds = new Set(normalizedGroups.map((group) => group.id))
   const normalizedOrder = groupOrder.filter(
-    (id) => id === UNGROUPED_ID || groupIds.has(id)
+    (id) => id === DEFAULT_GROUP_ID || groupIds.has(id)
   )
 
   normalizedGroups.forEach((group) => {
@@ -72,8 +72,8 @@ export const normalizeConfig = (config?: UserConfig | null): UserConfig => {
     }
   })
 
-  if (!normalizedOrder.includes(UNGROUPED_ID)) {
-    normalizedOrder.unshift(UNGROUPED_ID)
+  if (!normalizedOrder.includes(DEFAULT_GROUP_ID)) {
+    normalizedOrder.unshift(DEFAULT_GROUP_ID)
   }
 
   return {

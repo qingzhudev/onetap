@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import { createDefaultConfig, createInitialConfig, normalizeConfig } from "~lib/config"
-import { UNGROUPED_ID } from "~lib/constants"
+import { DEFAULT_GROUP_ID } from "~lib/constants"
 import type { UserConfig } from "~lib/types"
 
 describe("config helpers", () => {
@@ -9,8 +9,8 @@ describe("config helpers", () => {
     const config = normalizeConfig(null)
     expect(config.services.length).toBe(0)
     expect(config.groups.length).toBe(0)
-    expect(config.groupOrder).toContain(UNGROUPED_ID)
-    expect(config.groupOrder[0]).toBe(UNGROUPED_ID)
+    expect(config.groupOrder).toContain(DEFAULT_GROUP_ID)
+    expect(config.groupOrder[0]).toBe(DEFAULT_GROUP_ID)
     expect(config.preferences.closeSidePanelAfterOpen).toBe("batch-only")
     expect(config.lastOperations.domainMode).toBeTruthy()
     expect(config.lastOperations.textMode).toBeTruthy()
@@ -27,7 +27,7 @@ describe("config helpers", () => {
         }
       ],
       groups: [],
-      groupOrder: [UNGROUPED_ID]
+      groupOrder: [DEFAULT_GROUP_ID]
     } as UserConfig)
 
     expect(config.services[0].supportedVariables.domain).toBe(true)
@@ -38,8 +38,8 @@ describe("config helpers", () => {
     const config = createInitialConfig()
     expect(config.groupOrder.length).toBe(config.groups.length + 1)
     expect(config.services.length).toBe(0)
-    expect(config.groupOrder).toContain(UNGROUPED_ID)
-    expect(config.groupOrder[0]).toBe(UNGROUPED_ID)
+    expect(config.groupOrder).toContain(DEFAULT_GROUP_ID)
+    expect(config.groupOrder[0]).toBe(DEFAULT_GROUP_ID)
     expect(config.preferences.closeSidePanelAfterOpen).toBe("batch-only")
   })
 
@@ -47,7 +47,7 @@ describe("config helpers", () => {
     const config = createDefaultConfig()
     expect(config.groupOrder.length).toBe(config.groups.length + 1)
     expect(config.services.length).toBe(0)
-    expect(config.groupOrder).toContain(UNGROUPED_ID)
-    expect(config.groupOrder[0]).toBe(UNGROUPED_ID)
+    expect(config.groupOrder).toContain(DEFAULT_GROUP_ID)
+    expect(config.groupOrder[0]).toBe(DEFAULT_GROUP_ID)
   })
 })
