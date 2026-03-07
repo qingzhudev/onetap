@@ -36,7 +36,10 @@ export const queryActiveTab = async (): Promise<chrome.tabs.Tab | null> => {
 
 export const queryActiveTabUrl = async (): Promise<string | null> => {
   const tab = await queryActiveTab()
-  return tab?.url ?? null
+  if (!tab) {
+    return null
+  }
+  return tab.url || tab.pendingUrl || null
 }
 
 /**
