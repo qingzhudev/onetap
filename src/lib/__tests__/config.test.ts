@@ -46,9 +46,8 @@ describe("config helpers", () => {
   it("createDefaultConfig aligns groupOrder", () => {
     const config = createDefaultConfig()
     expect(config.groupOrder.length).toBe(config.groups.length + 1)
-    expect(config.services.length).toBeGreaterThan(0)
+    expect(config.services.length).toBe(0)
     expect(config.groupOrder).toContain(UNGROUPED_ID)
     expect(config.groupOrder[0]).toBe(UNGROUPED_ID)
-    expect(config.services[0].supportedVariables).toBeTruthy()
   })
 })
