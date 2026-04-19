@@ -288,6 +288,76 @@ body {
   box-shadow: var(--shadow-xs);
 }
 
+.quick-card {
+  background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+  border: 1px solid #dbeafe;
+  border-radius: var(--radius-lg);
+  padding: 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.quick-card__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1d4ed8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.quick-card__pill {
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.quick-card__action {
+  width: 100%;
+  border: 1px solid rgba(59, 130, 246, 0.18);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.quick-card__action:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+  border-color: rgba(37, 99, 235, 0.28);
+}
+
+.quick-card__name {
+  text-align: left;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.quick-card__meta {
+  flex-shrink: 0;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 /* Groups */
 .group {
   background: var(--bg-elevated);
@@ -299,6 +369,33 @@ body {
 
 .group:hover {
   box-shadow: var(--shadow-md);
+}
+
+.group--shortcut {
+  padding-top: 10px;
+}
+
+.shortcut-section__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.shortcut-section__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.shortcut-section__title svg,
+.quick-card__title svg {
+  stroke-width: 1.9;
 }
 
 .group__header {
@@ -421,6 +518,51 @@ body {
   text-align: center;
   background: var(--bg-secondary);
   border-radius: var(--radius-md);
+}
+
+.shortcut-list {
+  list-style: none;
+  padding: 4px 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shortcut-list__item {
+  width: 100%;
+  border: 1px solid transparent;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-md);
+  padding: 9px 11px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.shortcut-list__item:hover {
+  background: var(--bg-subtle);
+  border-color: var(--border);
+  color: var(--text-primary);
+  transform: translateX(1px);
+  box-shadow: var(--shadow-xs);
+}
+
+.shortcut-list__name {
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.shortcut-list__meta {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+  font-weight: 600;
 }
 
 /* Footer - Fixed at bottom with blur effect */

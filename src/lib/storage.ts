@@ -1,6 +1,7 @@
 import { Storage } from "@plasmohq/storage"
 
-import { createDefaultConfig, normalizeConfig } from "./config"
+import { getEvents } from "./analytics"
+import { createDefaultConfig, normalizeConfig, serializeConfigForExport } from "./config"
 import { MAX_HISTORY_ITEMS } from "./constants"
 import type { LastOperation, OperationMode, UserConfig } from "./types"
 
@@ -8,6 +9,8 @@ const storage = new Storage({ area: "local" })
 const CONFIG_KEY = "onetap:config:v1"
 const LAST_OP_DOMAIN_KEY = "onetap:last_op:domain"
 const LAST_OP_TEXT_KEY = "onetap:last_op:text"
+const RECENT_OP_DOMAIN_KEY = "onetap:recent_ops:domain"
+const RECENT_OP_TEXT_KEY = "onetap:recent_ops:text"
 const DOMAIN_HISTORY_KEY = "onetap:history:domains"
 const KEYWORD_HISTORY_KEY = "onetap:history:keywords"
 
@@ -41,8 +44,13 @@ export const getLastOperation = async (
   const key = mode === "domain" ? LAST_OP_DOMAIN_KEY : LAST_OP_TEXT_KEY
   const stored = await storage.get<LastOperation>(key)
 
+  if (stored) {
+    return stored
+  }
+
+  const fallback = await deriveOperationsFromAnalytics(mode)
   return (
-    stored || {
+    fallback.lastOperation || {
       type: null,
       id: null,
       name: null,
@@ -57,6 +65,140 @@ export const saveLastOperation = async (
 ): Promise<void> => {
   const key = mode === "domain" ? LAST_OP_DOMAIN_KEY : LAST_OP_TEXT_KEY
   await storage.set(key, operation)
+}
+
+export const getRecentOperations = async (
+  mode: OperationMode
+): Promise<LastOperation[]> => {
+  const key = mode === "domain" ? RECENT_OP_DOMAIN_KEY : RECENT_OP_TEXT_KEY
+  const stored = await storage.get<LastOperation[]>(key)
+
+  if (Array.isArray(stored)) {
+    return stored.filter(
+      (operation): operation is LastOperation =>
+      Boolean(operation) &&
+      (operation.type === "service" ||
+        operation.type === "group" ||
+        operation.type === "workflow") &&
+      typeof operation.id === "string" &&
+      typeof operation.name === "string" &&
+      typeof operation.timestamp === "string"
+    )
+  }
+
+  const fallback = await deriveOperationsFromAnalytics(mode)
+  return fallback.recentOperations
+}
+
+export const saveRecentOperation = async (
+  mode: OperationMode,
+  operation: LastOperation
+): Promise<LastOperation[]> => {
+  const key = mode === "domain" ? RECENT_OP_DOMAIN_KEY : RECENT_OP_TEXT_KEY
+  const existing = await getRecentOperations(mode)
+  const recent = [
+    operation,
+    ...existing.filter(
+      (item) => !(item.type === operation.type && item.id === operation.id)
+    )
+  ].slice(0, MAX_HISTORY_ITEMS)
+
+  await storage.set(key, recent)
+  return recent
+}
+
+const deriveOperationsFromAnalytics = async (
+  mode: OperationMode
+): Promise<{
+  lastOperation: LastOperation | null
+  recentOperations: LastOperation[]
+}> => {
+  const events = await getEvents()
+  const recentOperations: LastOperation[] = []
+  const seen = new Set<string>()
+
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    const eventMode = event.data.mode
+
+    if (eventMode !== mode) {
+      continue
+    }
+
+    let operation: LastOperation | null = null
+
+    if (
+      event.eventType === "service_click_foreground" ||
+      event.eventType === "service_click_background"
+    ) {
+      const id = event.data.serviceId
+      const name = event.data.serviceName
+
+      if (typeof id === "string" && typeof name === "string") {
+        operation = {
+          type: "service",
+          id,
+          name,
+          timestamp: event.timestamp
+        }
+      }
+    }
+
+    if (
+      event.eventType === "workflow_click_foreground" ||
+      event.eventType === "workflow_click_background"
+    ) {
+      const id = event.data.workflowId
+      const name = event.data.workflowName
+
+      if (typeof id === "string" && typeof name === "string") {
+        operation = {
+          type: "workflow",
+          id,
+          name,
+          timestamp: event.timestamp
+        }
+      }
+    }
+
+    if (
+      event.eventType === "group_click_foreground" ||
+      event.eventType === "group_click_background"
+    ) {
+      const id = event.data.groupId
+      const name = event.data.groupName
+
+      if (typeof id === "string" && typeof name === "string") {
+        operation = {
+          type: "group",
+          id,
+          name,
+          timestamp: event.timestamp
+        }
+      }
+    }
+
+    if (!operation) {
+      continue
+    }
+
+    const key = `${operation.type}:${operation.id}`
+    if (seen.has(key)) {
+      continue
+    }
+
+    seen.add(key)
+    recentOperations.push(operation)
+
+    if (recentOperations.length >= MAX_HISTORY_ITEMS) {
+      break
+    }
+  }
+
+  return {
+    lastOperation: recentOperations[0] ?? null,
+    recentOperations
+  }
 }
 
 export const subscribeConfig = (listener: (config: UserConfig) => void) => {
@@ -84,7 +226,7 @@ export const subscribeConfig = (listener: (config: UserConfig) => void) => {
 
 export const exportConfig = async (): Promise<string> => {
   const config = await getConfig()
-  return JSON.stringify(config, null, 2)
+  return JSON.stringify(serializeConfigForExport(config), null, 2)
 }
 
 export const importConfig = async (jsonString: string): Promise<UserConfig> => {

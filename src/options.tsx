@@ -25,6 +25,7 @@ import { Settings } from "lucide-react"
 import {
   clampGroupName,
   createInitialConfig,
+  getOrderedWorkflows,
   getOrderedGroups,
   getUngroupedServices,
   inferSupportedVariables
@@ -35,6 +36,7 @@ import {
   MAX_GROUP_NAME_LENGTH,
   MAX_HISTORY_ITEMS,
   MAX_SERVICE_COUNT,
+  MAX_WORKFLOW_COUNT,
   MAX_SERVICES_PER_GROUP_COUNT,
   DEFAULT_GROUP_ID
 } from "~lib/constants"
@@ -43,17 +45,26 @@ import { t } from "~lib/i18n"
 import { getConfig, saveConfig, exportConfig, importConfig, exportDomainHistory, exportKeywordHistory } from "~lib/storage"
 import { trackEventWithNotify, exportEvents, exportEventsAsCsv, clearEvents } from "~lib/analytics"
 import { useToast } from "~lib/toast"
-import type { AnalysisService, ServiceGroup, UserConfig } from "~lib/types"
+import type {
+  AnalysisService,
+  ServiceGroup,
+  UserConfig,
+  Workflow,
+  WorkflowMode,
+  WorkflowOpenStrategy
+} from "~lib/types"
 import "~styles/options.css"
 
 const GROUP_PREFIX = "group:"
 const SERVICE_PREFIX = "service:"
 const CONTAINER_PREFIX = "container:"
+const WORKFLOW_STEP_PREFIX = "workflow-step:"
 const NEW_GROUP_ID = "new-group"
 
 const asGroupDragId = (id: string) => `${GROUP_PREFIX}${id}`
 const asServiceDragId = (id: string) => `${SERVICE_PREFIX}${id}`
 const asContainerId = (id: string) => `${CONTAINER_PREFIX}${id}`
+const asWorkflowStepDragId = (id: string) => `${WORKFLOW_STEP_PREFIX}${id}`
 
 const stripPrefix = (value: string, prefix: string) =>
   value.startsWith(prefix) ? value.slice(prefix.length) : value
@@ -61,12 +72,16 @@ const stripPrefix = (value: string, prefix: string) =>
 const isGroupId = (value: string) => value.startsWith(GROUP_PREFIX)
 const isServiceId = (value: string) => value.startsWith(SERVICE_PREFIX)
 const isContainerId = (value: string) => value.startsWith(CONTAINER_PREFIX)
+const isWorkflowStepId = (value: string) => value.startsWith(WORKFLOW_STEP_PREFIX)
 
 const findGroupById = (config: UserConfig, id: string) =>
   config.groups.find((group) => group.id === id)
 
 const findServiceById = (config: UserConfig, id: string) =>
   config.services.find((service) => service.id === id)
+
+const findWorkflowById = (config: UserConfig, id: string) =>
+  config.workflows.find((workflow) => workflow.id === id)
 
 const findServiceGroupId = (config: UserConfig, serviceId: string) => {
   const group = config.groups.find((item) => item.serviceIds.includes(serviceId))
@@ -248,6 +263,162 @@ const SortableUngrouped = ({
   )
 }
 
+const WorkflowCard = ({
+  workflow,
+  services,
+  onEdit,
+  onDelete,
+  onTogglePin,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp,
+  canMoveDown
+}: {
+  workflow: Workflow
+  services: AnalysisService[]
+  onEdit: (workflowId: string) => void
+  onDelete: (workflowId: string) => void
+  onTogglePin: (workflowId: string) => void
+  onMoveUp: (workflowId: string) => void
+  onMoveDown: (workflowId: string) => void
+  canMoveUp: boolean
+  canMoveDown: boolean
+}) => {
+  const modeLabel =
+    workflow.mode === "domain"
+      ? t("optionWorkflowModeDomain")
+      : workflow.mode === "text"
+        ? t("optionWorkflowModeText")
+        : t("optionWorkflowModeBoth")
+  const strategyLabel =
+    workflow.openStrategy === "background-all"
+      ? t("optionWorkflowOpenBackgroundAll")
+      : t("optionWorkflowOpenForegroundFirst")
+
+  return (
+    <section className="workflow-card">
+      <div className="workflow-card__header">
+        <div className="workflow-card__title-wrap">
+          <div className="workflow-card__title-row">
+            <span className="workflow-card__title">{workflow.name}</span>
+            {workflow.pinned ? (
+              <span className="workflow-card__badge">{t("workflowPinned")}</span>
+            ) : null}
+          </div>
+          <div className="workflow-card__meta">
+            <span>{t("workflowCount", { count: workflow.serviceIds.length })}</span>
+            <span>{t("workflowMode")}: {modeLabel}</span>
+            <span>{t("workflowOpenStrategy")}: {strategyLabel}</span>
+          </div>
+        </div>
+        <div className="group-card__actions">
+          <button className="ghost-button" onClick={() => onTogglePin(workflow.id)}>
+            {workflow.pinned ? t("workflowUnpin") : t("workflowPin")}
+          </button>
+          <button
+            className="ghost-button"
+            onClick={() => onMoveUp(workflow.id)}
+            disabled={!canMoveUp}>
+            {t("workflowMoveUp")}
+          </button>
+          <button
+            className="ghost-button"
+            onClick={() => onMoveDown(workflow.id)}
+            disabled={!canMoveDown}>
+            {t("workflowMoveDown")}
+          </button>
+          <button className="ghost-button" onClick={() => onEdit(workflow.id)}>
+            {t("workflowEdit")}
+          </button>
+          <button className="ghost-button danger" onClick={() => onDelete(workflow.id)}>
+            {t("workflowDelete")}
+          </button>
+        </div>
+      </div>
+      <ol className="workflow-card__steps">
+        {services.map((service) => (
+          <li key={service.id} className="workflow-card__step">
+            <span className="workflow-card__step-index">
+              {workflow.serviceIds.indexOf(service.id) + 1}
+            </span>
+            <span className="workflow-card__step-meta">
+              <span className="workflow-card__step-name">{service.name}</span>
+              <span
+                className="workflow-card__step-template"
+                title={service.urlTemplate}>
+                {service.urlTemplate}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+const FieldLabel = ({
+  label,
+  help
+}: {
+  label: string
+  help: string
+}) => (
+  <div className="modal__field-label">
+    <span>{label}</span>
+    <span className="help-tip" data-tooltip={help} aria-label={help}>
+      ?
+    </span>
+  </div>
+)
+
+const SortableWorkflowStep = ({
+  service,
+  index,
+  onRemove
+}: {
+  service: AnalysisService
+  index: number
+  onRemove: (serviceId: string) => void
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: asWorkflowStepDragId(service.id) })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition
+  }
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={clsx("workflow-step", isDragging && "is-dragging")}>
+      <button className="drag-handle" {...attributes} {...listeners}>
+        ⠿
+      </button>
+      <span className="workflow-step__index">{index + 1}</span>
+      <div className="workflow-step__content">
+        <div className="workflow-step__name">{service.name}</div>
+        <div className="workflow-step__template" title={service.urlTemplate}>
+          {service.urlTemplate}
+        </div>
+      </div>
+      <button
+        className="ghost-button"
+        type="button"
+        onClick={() => onRemove(service.id)}>
+        {t("serviceRemove")}
+      </button>
+    </li>
+  )
+}
+
 type ModalState =
   | {
       type: "confirm"
@@ -284,6 +455,39 @@ type ModalState =
       initialUrl: string
       initialGroupId: string
       onConfirm: (name: string, url: string, groupId: string) => boolean
+    }
+  | {
+      type: "create-workflow"
+      title: string
+      initialName: string
+      initialMode: WorkflowMode
+      initialPinned: boolean
+      initialOpenStrategy: WorkflowOpenStrategy
+      initialServiceIds: string[]
+      onConfirm: (
+        name: string,
+        mode: WorkflowMode,
+        pinned: boolean,
+        openStrategy: WorkflowOpenStrategy,
+        serviceIds: string[]
+      ) => boolean
+    }
+  | {
+      type: "edit-workflow"
+      title: string
+      workflowId: string
+      initialName: string
+      initialMode: WorkflowMode
+      initialPinned: boolean
+      initialOpenStrategy: WorkflowOpenStrategy
+      initialServiceIds: string[]
+      onConfirm: (
+        name: string,
+        mode: WorkflowMode,
+        pinned: boolean,
+        openStrategy: WorkflowOpenStrategy,
+        serviceIds: string[]
+      ) => boolean
     }
 
 const SortableService = ({
@@ -361,8 +565,11 @@ type InsertPosition = {
   afterServiceId: string | null
 }
 
+type OptionsTab = "workflows" | "services"
+
 const OptionsPage = () => {
   const [config, setConfig] = useState<UserConfig>(() => createInitialConfig())
+  const [activeTab, setActiveTab] = useState<OptionsTab>("workflows")
   const [isReady, setIsReady] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [insertPosition, setInsertPosition] = useState<InsertPosition | null>(null)
@@ -431,6 +638,12 @@ const OptionsPage = () => {
   const appendGroupId = (order: string[], groupId: string) =>
     ensureHasDefault([...order.filter((id) => id !== groupId), groupId])
 
+  const appendWorkflowId = (order: string[], workflowId: string) => [
+    ...order.filter((id) => id !== workflowId),
+    workflowId
+  ]
+
+  const orderedWorkflows = useMemo(() => getOrderedWorkflows(config), [config])
   const orderedGroups = useMemo(() => getOrderedGroups(config), [config])
   const orderedGroupIds = useMemo(() => {
     const order = config.groupOrder.length
@@ -444,9 +657,10 @@ const OptionsPage = () => {
   const stats = useMemo(
     () => ({
       services: config.services.length,
-      groups: config.groups.length
+      groups: config.groups.length,
+      workflows: config.workflows.length
     }),
-    [config.services.length, config.groups.length]
+    [config.services.length, config.groups.length, config.workflows.length]
   )
 
   const ungroupedServices = useMemo(
@@ -570,6 +784,48 @@ const OptionsPage = () => {
     )
   }
 
+  const buildCreateWorkflowModal = (draft?: {
+    name?: string
+    mode?: WorkflowMode
+    pinned?: boolean
+    openStrategy?: WorkflowOpenStrategy
+    serviceIds?: string[]
+  }): ModalState => ({
+    type: "create-workflow",
+    title: t("modalTitleAddWorkflow"),
+    initialName: draft?.name ?? "",
+    initialMode: draft?.mode ?? "both",
+    initialPinned: draft?.pinned ?? true,
+    initialOpenStrategy: draft?.openStrategy ?? "foreground-first",
+    initialServiceIds: draft?.serviceIds ?? [],
+    onConfirm: (name, mode, pinned, openStrategy, serviceIds) =>
+      addWorkflow(name, mode, pinned, openStrategy, serviceIds)
+  })
+
+  const openCreateWorkflowModal = () => {
+    setModal(buildCreateWorkflowModal({ pinned: false }))
+  }
+
+  const openEditWorkflowModal = (workflowId: string) => {
+    const workflow = findWorkflowById(config, workflowId)
+    if (!workflow) {
+      return
+    }
+
+    setModal({
+      type: "edit-workflow",
+      title: t("modalTitleEditWorkflow"),
+      workflowId,
+      initialName: workflow.name,
+      initialMode: workflow.mode,
+      initialPinned: workflow.pinned,
+      initialOpenStrategy: workflow.openStrategy,
+      initialServiceIds: workflow.serviceIds,
+      onConfirm: (name, mode, pinned, openStrategy, serviceIds) =>
+        updateWorkflow(workflowId, name, mode, pinned, openStrategy, serviceIds)
+    })
+  }
+
   const handleRenameGroup = (groupId: string) => {
     const group = findGroupById(config, groupId)
     if (!group) {
@@ -622,6 +878,165 @@ const OptionsPage = () => {
     })
   }
 
+  const addWorkflow = (
+    name: string,
+    mode: WorkflowMode,
+    pinned: boolean,
+    openStrategy: WorkflowOpenStrategy,
+    serviceIds: string[]
+  ) => {
+    if (config.workflows.length >= MAX_WORKFLOW_COUNT) {
+      notify(t("maxWorkflowsReached"))
+      return false
+    }
+
+    const trimmedName = name.trim()
+    const normalizedServiceIds = serviceIds.filter((serviceId) =>
+      config.services.some((service) => service.id === serviceId)
+    )
+
+    if (!trimmedName || normalizedServiceIds.length === 0) {
+      notify(t("workflowCreateFailed"))
+      return false
+    }
+
+    const workflowId = createId()
+    const workflow: Workflow = {
+      id: workflowId,
+      name: trimmedName,
+      mode,
+      pinned,
+      openStrategy,
+      serviceIds: normalizedServiceIds
+    }
+
+    setConfig((prev) => ({
+      ...prev,
+      workflows: [...prev.workflows, workflow],
+      workflowOrder: appendWorkflowId(prev.workflowOrder, workflowId)
+    }))
+
+    void trackEventWithNotify("workflow_create", {
+      workflowId,
+      workflowName: trimmedName,
+      mode,
+      pinned,
+      openStrategy,
+      serviceIds: normalizedServiceIds
+    })
+
+    return true
+  }
+
+  const updateWorkflow = (
+    workflowId: string,
+    name: string,
+    mode: WorkflowMode,
+    pinned: boolean,
+    openStrategy: WorkflowOpenStrategy,
+    serviceIds: string[]
+  ) => {
+    const trimmedName = name.trim()
+    const normalizedServiceIds = serviceIds.filter((serviceId) =>
+      config.services.some((service) => service.id === serviceId)
+    )
+
+    if (!trimmedName || normalizedServiceIds.length === 0) {
+      notify(t("workflowCreateFailed"))
+      return false
+    }
+
+    setConfig((prev) => ({
+      ...prev,
+      workflows: prev.workflows.map((workflow) =>
+        workflow.id === workflowId
+          ? {
+              ...workflow,
+              name: trimmedName,
+              mode,
+              pinned,
+              openStrategy,
+              serviceIds: normalizedServiceIds
+            }
+          : workflow
+      )
+    }))
+
+    void trackEventWithNotify("workflow_edit", {
+      workflowId,
+      workflowName: trimmedName,
+      mode,
+      pinned,
+      openStrategy,
+      serviceIds: normalizedServiceIds
+    })
+
+    return true
+  }
+
+  const handleDeleteWorkflow = (workflowId: string) => {
+    const workflow = findWorkflowById(config, workflowId)
+    if (!workflow) {
+      return
+    }
+
+    setModal({
+      type: "confirm",
+      title: t("modalTitleDeleteWorkflow"),
+      message: t("confirmDeleteWorkflow", { name: workflow.name }),
+      onConfirm: () => {
+        setConfig((prev) => ({
+          ...prev,
+          workflows: prev.workflows.filter((item) => item.id !== workflowId),
+          workflowOrder: prev.workflowOrder.filter((id) => id !== workflowId)
+        }))
+
+        void trackEventWithNotify("workflow_delete", {
+          workflowId,
+          workflowName: workflow.name
+        })
+      }
+    })
+  }
+
+  const toggleWorkflowPinned = (workflowId: string) => {
+    const workflow = findWorkflowById(config, workflowId)
+    if (!workflow) {
+      return
+    }
+
+    setConfig((prev) => ({
+      ...prev,
+      workflows: prev.workflows.map((item) =>
+        item.id === workflowId ? { ...item, pinned: !item.pinned } : item
+      )
+    }))
+
+    void trackEventWithNotify("workflow_edit", {
+      workflowId,
+      workflowName: workflow.name,
+      pinned: !workflow.pinned
+    })
+  }
+
+  const moveWorkflow = (workflowId: string, direction: -1 | 1) => {
+    const currentIndex = config.workflowOrder.indexOf(workflowId)
+    const nextIndex = currentIndex + direction
+
+    if (
+      currentIndex === -1 ||
+      nextIndex < 0 ||
+      nextIndex >= config.workflowOrder.length
+    ) {
+      return
+    }
+
+    setConfig((prev) => ({
+      ...prev,
+      workflowOrder: arrayMove(prev.workflowOrder, currentIndex, nextIndex)
+    }))
+  }
+
   const handleRemoveServiceFromGroup = (serviceId: string) => {
     const groupId = findServiceGroupId(config, serviceId)
     if (groupId === null || groupId === DEFAULT_GROUP_ID) {
@@ -656,6 +1071,10 @@ const OptionsPage = () => {
         setConfig((prev) => ({
           ...prev,
           services: prev.services.filter((item) => item.id !== serviceId),
+          workflows: prev.workflows.map((workflow) => ({
+            ...workflow,
+            serviceIds: workflow.serviceIds.filter((id) => id !== serviceId)
+          })),
           groups: prev.groups.map((group) => ({
             ...group,
             serviceIds: group.serviceIds.filter((id) => id !== serviceId)
@@ -836,7 +1255,7 @@ const OptionsPage = () => {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-      notify(t("exportSuccess"))
+      notify(`${t("exportSuccess")} · ${t("statsSummary", stats)}`)
 
       // Track config export
       void trackEventWithNotify("config_export", { format: "json" })
@@ -960,7 +1379,13 @@ const OptionsPage = () => {
         const content = e.target?.result as string
         const importedConfig = await importConfig(content)
         setConfig(importedConfig)
-        notify(t("importSuccess"))
+        notify(
+          `${t("importSuccess")} · ${t("statsSummary", {
+            services: importedConfig.services.length,
+            groups: importedConfig.groups.length,
+            workflows: importedConfig.workflows.length
+          })}`
+        )
 
         // Track config import
         void trackEventWithNotify("config_import", {})
@@ -1239,120 +1664,197 @@ const OptionsPage = () => {
   return (
     <div className="options">
       <header className="options__header">
-        <div>
-          <p>{t("headerSubtitle")}</p>
-        </div>
-        <div className="options__actions">
-          <div className="dropdown" ref={configMenuRef}>
+        <div className="options__header-top">
+          <div className="options-tabs">
             <button
-              className="primary is-compact dropdown-toggle"
-              onClick={() => setShowConfigMenu(!showConfigMenu)}
-            >
-              <Settings size={16} />
-              {t("optionsSettings")}
+              className={clsx("options-tab", activeTab === "services" && "is-active")}
+              onClick={() => setActiveTab("services")}>
+              {t("optionsTabServices")}
             </button>
-            {showConfigMenu && (
-              <div className="dropdown-menu">
-                <button 
-                  className="dropdown-item"
-                  onClick={() => {
-                    handleExport()
-                    setShowConfigMenu(false)
-                  }}
-                >
-                  {t("buttonExport")} Config
-                </button>
-                <label className="dropdown-item button-file">
-                  {t("buttonImport")} Config
-                  <input
-                    type="file"
-                    accept=".json"
-                    onChange={(e) => {
-                      handleImport(e)
+            <button
+              className={clsx("options-tab", activeTab === "workflows" && "is-active")}
+              onClick={() => setActiveTab("workflows")}>
+              {t("optionsTabWorkflows")}
+            </button>
+          </div>
+          <div className="options__actions">
+            <div className="dropdown" ref={configMenuRef}>
+              <button
+                className="primary is-compact dropdown-toggle"
+                onClick={() => setShowConfigMenu(!showConfigMenu)}
+              >
+                <Settings size={16} />
+                {t("optionsSettings")}
+              </button>
+              {showConfigMenu && (
+                <div className="dropdown-menu">
+                  <button 
+                    className="dropdown-item"
+                    onClick={() => {
+                      handleExport()
                       setShowConfigMenu(false)
                     }}
-                    style={{ display: "none" }}
-                  />
-                </label>
-                <div className="dropdown-divider" />
-                <button 
-                  className="dropdown-item"
-                  onClick={() => {
-                    handleExportDomains()
-                    setShowConfigMenu(false)
-                  }}
-                >
-                  {t("optionsExportDomains")}
+                  >
+                    {t("buttonExport")} Config
+                  </button>
+                  <label className="dropdown-item button-file">
+                    {t("buttonImport")} Config
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={(e) => {
+                        handleImport(e)
+                        setShowConfigMenu(false)
+                      }}
+                      style={{ display: "none" }}
+                    />
+                  </label>
+                  <div className="dropdown-divider" />
+                  <button 
+                    className="dropdown-item"
+                    onClick={() => {
+                      handleExportDomains()
+                      setShowConfigMenu(false)
+                    }}
+                  >
+                    {t("optionsExportDomains")}
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      handleExportKeywords()
+                      setShowConfigMenu(false)
+                    }}
+                  >
+                    {t("optionsExportKeywords")}
+                  </button>
+                  <div className="dropdown-divider" />
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      handleExportAnalyticsJson()
+                      setShowConfigMenu(false)
+                    }}
+                  >
+                    {t("optionsExportAnalyticsJson")}
+                  </button>
+                  <button
+                    className="dropdown-item"
+                    onClick={() => {
+                      handleExportAnalyticsCsv()
+                      setShowConfigMenu(false)
+                    }}
+                  >
+                    {t("optionsExportAnalyticsCsv")}
+                  </button>
+                  <button
+                    className="dropdown-item danger"
+                    onClick={() => {
+                      handleClearAnalytics()
+                      setShowConfigMenu(false)
+                    }}
+                  >
+                    {t("optionsClearAnalytics")}
+                  </button>
+                </div>
+              )}
+            </div>
+            {activeTab === "workflows" ? (
+              <button className="primary is-compact" onClick={openCreateWorkflowModal}>
+                {t("buttonAddWorkflow")}
+              </button>
+            ) : (
+              <>
+                <button className="primary is-compact" onClick={() => openCreateGroupModal()}>
+                  {t("buttonAddGroup")}
                 </button>
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    handleExportKeywords()
-                    setShowConfigMenu(false)
-                  }}
-                >
-                  {t("optionsExportKeywords")}
+                <button className="primary is-compact" onClick={openCreateServiceModal}>
+                  {t("buttonAddService")}
                 </button>
-                <div className="dropdown-divider" />
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    handleExportAnalyticsJson()
-                    setShowConfigMenu(false)
-                  }}
-                >
-                  {t("optionsExportAnalyticsJson")}
-                </button>
-                <button
-                  className="dropdown-item"
-                  onClick={() => {
-                    handleExportAnalyticsCsv()
-                    setShowConfigMenu(false)
-                  }}
-                >
-                  {t("optionsExportAnalyticsCsv")}
-                </button>
-                <button
-                  className="dropdown-item danger"
-                  onClick={() => {
-                    handleClearAnalytics()
-                    setShowConfigMenu(false)
-                  }}
-                >
-                  {t("optionsClearAnalytics")}
-                </button>
-              </div>
+              </>
             )}
           </div>
-          <button className="primary is-compact" onClick={() => openCreateGroupModal()}>
-            {t("buttonAddGroup")}
-          </button>
-          <button className="primary is-compact" onClick={openCreateServiceModal}>
-            {t("buttonAddService")}
-          </button>
+        </div>
+        <div className="options__header-main">
+          <p>
+            {activeTab === "workflows"
+              ? t("optionsWorkflowSubtitle")
+              : t("optionsServicesGroupsSubtitle")}
+          </p>
         </div>
       </header>
 
+      {activeTab === "workflows" ? (
+        <section className="workflow-section">
+          <div className="workflow-list">
+            {orderedWorkflows.length === 0 ? (
+              <div className="workflow-list__empty">{t("optionsWorkflowEmpty")}</div>
+            ) : (
+              orderedWorkflows.map((workflow, index) => (
+                <WorkflowCard
+                  key={workflow.id}
+                  workflow={workflow}
+                services={workflow.serviceIds
+                  .map((id) => findServiceById(config, id))
+                  .filter((service): service is AnalysisService => Boolean(service))}
+                onEdit={openEditWorkflowModal}
+                onDelete={handleDeleteWorkflow}
+                onTogglePin={toggleWorkflowPinned}
+                onMoveUp={(workflowId) => moveWorkflow(workflowId, -1)}
+                onMoveDown={(workflowId) => moveWorkflow(workflowId, 1)}
+                canMoveUp={index > 0}
+                  canMoveDown={index < orderedWorkflows.length - 1}
+                />
+              ))
+            )}
+          </div>
+        </section>
+      ) : (
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}>
+          <SortableContext
+            items={orderedGroupIds.map((groupId) => asGroupDragId(groupId))}
+            strategy={verticalListSortingStrategy}>
+            <div className="group-list">
+              {orderedGroupIds.map((groupId) => {
+                if (groupId === DEFAULT_GROUP_ID) {
+                  if (ungroupedServices.length === 0) {
+                    return null
+                  }
+                  return (
+                    <DroppableContainer key={DEFAULT_GROUP_ID} id={DEFAULT_GROUP_ID}>
+                      <SortableUngrouped
+                        groupId={DEFAULT_GROUP_ID}
+                        services={ungroupedServices}
+                        onRemoveService={handleRemoveServiceFromGroup}
+                        onDeleteService={handleDeleteService}
+                        onEditService={openEditServiceModal}
+                        disabled={!isReady}
+                        insertPosition={insertPosition}
+                      />
+                    </DroppableContainer>
+                  )
+                }
 
-      <DndContext
-        sensors={sensors}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}>
-        <SortableContext
-          items={orderedGroupIds.map((groupId) => asGroupDragId(groupId))}
-          strategy={verticalListSortingStrategy}>
-          <div className="group-list">
-            {orderedGroupIds.map((groupId) => {
-              if (groupId === DEFAULT_GROUP_ID) {
-                if (ungroupedServices.length === 0) {
+                const group = findGroupById(config, groupId)
+                if (!group) {
                   return null
                 }
+
+                const services = group.serviceIds
+                  .map((id) => findServiceById(config, id))
+                  .filter((service): service is AnalysisService => Boolean(service))
+
                 return (
-                  <DroppableContainer key={DEFAULT_GROUP_ID} id={DEFAULT_GROUP_ID}>
-                    <SortableUngrouped
-                      groupId={DEFAULT_GROUP_ID}
-                      services={ungroupedServices}
+                  <DroppableContainer key={group.id} id={group.id}>
+                    <SortableGroup
+                      group={group}
+                      services={services}
+                      onRename={handleRenameGroup}
+                      onDelete={handleDeleteGroup}
                       onRemoveService={handleRemoveServiceFromGroup}
                       onDeleteService={handleDeleteService}
                       onEditService={openEditServiceModal}
@@ -1361,45 +1863,24 @@ const OptionsPage = () => {
                     />
                   </DroppableContainer>
                 )
-              }
+              })}
+            </div>
+          </SortableContext>
 
-              const group = findGroupById(config, groupId)
-              if (!group) {
-                return null
-              }
-
-              const services = group.serviceIds
-                .map((id) => findServiceById(config, id))
-                .filter((service): service is AnalysisService => Boolean(service))
-
-              return (
-                <DroppableContainer key={group.id} id={group.id}>
-                  <SortableGroup
-                    group={group}
-                    services={services}
-                    onRename={handleRenameGroup}
-                    onDelete={handleDeleteGroup}
-                    onRemoveService={handleRemoveServiceFromGroup}
-                    onDeleteService={handleDeleteService}
-                    onEditService={openEditServiceModal}
-                    disabled={!isReady}
-                    insertPosition={insertPosition}
-                  />
-                </DroppableContainer>
-              )
-            })}
-          </div>
-        </SortableContext>
-
-        <DragOverlay>
-          {dragOverlayLabel ? (
-            <div className="drag-overlay">{dragOverlayLabel}</div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+          <DragOverlay>
+            {dragOverlayLabel ? (
+              <div className="drag-overlay">{dragOverlayLabel}</div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       <div className="options__stats">
-        {t("statsSummary", { services: stats.services, groups: stats.groups })}
+        {t("statsSummary", {
+          services: stats.services,
+          groups: stats.groups,
+          workflows: stats.workflows
+        })}
       </div>
 
       <div className="toast-stack">
@@ -1414,6 +1895,7 @@ const OptionsPage = () => {
         <Modal
           modal={modal}
           groups={orderedGroups}
+          services={config.services}
           onRequestCreateGroup={(draft) => {
             const fallbackModal =
               draft.mode === "edit"
@@ -1457,6 +1939,7 @@ const OptionsPage = () => {
       <footer className="options__footer">
         <div className="options__footer-help">
           <span>{t("helpMaxGroups")}: {MAX_GROUP_COUNT}</span>
+          <span>{t("helpMaxWorkflows")}: {MAX_WORKFLOW_COUNT}</span>
           <span>{t("helpMaxServices")}: {MAX_SERVICE_COUNT}</span>
           <span>{t("helpMaxServicesPerGroup")}: {MAX_SERVICES_PER_GROUP_COUNT}</span>
           <span>{t("helpMaxHistoryItems")}: {MAX_HISTORY_ITEMS}</span>
@@ -1469,12 +1952,14 @@ const OptionsPage = () => {
 const Modal = ({
   modal,
   groups,
+  services,
   onRequestCreateGroup,
   onClose,
   onConfirm
 }: {
   modal: ModalState
   groups: ServiceGroup[]
+  services: AnalysisService[]
   onRequestCreateGroup?: (draft: {
     mode: "create" | "edit"
     serviceId?: string
@@ -1492,6 +1977,10 @@ const Modal = ({
         ? modal.initialName
         : modal.type === "create-service"
           ? modal.initialName
+        : modal.type === "create-workflow"
+          ? modal.initialName
+        : modal.type === "edit-workflow"
+          ? modal.initialName
         : modal.type === "edit-service"
           ? modal.initialName
         : ""
@@ -1506,6 +1995,28 @@ const Modal = ({
       ? modal.initialGroupId
       : DEFAULT_GROUP_ID
   )
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>(
+    modal.type === "create-workflow" || modal.type === "edit-workflow"
+      ? modal.initialMode
+      : "both"
+  )
+  const [workflowPinned, setWorkflowPinned] = useState(
+    modal.type === "create-workflow" || modal.type === "edit-workflow"
+      ? modal.initialPinned
+      : true
+  )
+  const [workflowOpenStrategy, setWorkflowOpenStrategy] =
+    useState<WorkflowOpenStrategy>(
+      modal.type === "create-workflow" || modal.type === "edit-workflow"
+        ? modal.initialOpenStrategy
+        : "foreground-first"
+    )
+  const [workflowServiceIds, setWorkflowServiceIds] = useState<string[]>(
+    modal.type === "create-workflow" || modal.type === "edit-workflow"
+      ? modal.initialServiceIds
+      : []
+  )
+  const [workflowSearch, setWorkflowSearch] = useState("")
   const [icon, setIcon] = useState(
     modal.type === "create-group" ? modal.initialIcon : ICONS[0]
   )
@@ -1528,7 +2039,96 @@ const Modal = ({
       setUrl(modal.initialUrl)
       setGroupId(modal.initialGroupId)
     }
+    if (modal.type === "create-workflow" || modal.type === "edit-workflow") {
+      setValue(modal.initialName)
+      setWorkflowMode(modal.initialMode)
+      setWorkflowPinned(modal.initialPinned)
+      setWorkflowOpenStrategy(modal.initialOpenStrategy)
+      setWorkflowServiceIds(modal.initialServiceIds)
+      setWorkflowSearch("")
+    }
   }, [modal])
+
+  const selectedWorkflowServices = useMemo(
+    () =>
+      workflowServiceIds
+        .map((serviceId) => services.find((service) => service.id === serviceId))
+        .filter((service): service is AnalysisService => Boolean(service)),
+    [services, workflowServiceIds]
+  )
+
+  const filteredWorkflowServices = useMemo(() => {
+    const keyword = workflowSearch.trim().toLowerCase()
+    const selectedIds = new Set(workflowServiceIds)
+
+    const availableServices = services.filter((service) => {
+      if (selectedIds.has(service.id)) {
+        return false
+      }
+
+      if (workflowMode === "domain") {
+        return service.supportedVariables.domain
+      }
+
+      if (workflowMode === "text") {
+        return service.supportedVariables.text
+      }
+
+      return service.supportedVariables.domain || service.supportedVariables.text
+    })
+
+    if (!keyword) {
+      return availableServices
+    }
+
+    return availableServices.filter((service) =>
+      `${service.name} ${service.urlTemplate}`.toLowerCase().includes(keyword)
+    )
+  }, [services, workflowMode, workflowSearch, workflowServiceIds])
+
+  const workflowSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 6
+      }
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates
+    })
+  )
+
+  const toggleWorkflowService = (serviceId: string) => {
+    setWorkflowServiceIds((current) => {
+      if (current.includes(serviceId)) {
+        return current.filter((id) => id !== serviceId)
+      }
+
+      return [...current, serviceId]
+    })
+  }
+
+  const handleWorkflowStepDragEnd = (event: DragEndEvent) => {
+    const active = String(event.active.id)
+    const over = event.over ? String(event.over.id) : null
+
+    if (!over || active === over || !isWorkflowStepId(active) || !isWorkflowStepId(over)) {
+      return
+    }
+
+    const activeServiceId = stripPrefix(active, WORKFLOW_STEP_PREFIX)
+    const overServiceId = stripPrefix(over, WORKFLOW_STEP_PREFIX)
+
+    setWorkflowServiceIds((current) => {
+      const oldIndex = current.indexOf(activeServiceId)
+      const newIndex = current.indexOf(overServiceId)
+
+      if (oldIndex === -1 || newIndex === -1) {
+        return current
+      }
+
+      return arrayMove(current, oldIndex, newIndex)
+    })
+  }
 
   const handlePrimary = () => {
     if (modal.type === "confirm") {
@@ -1544,89 +2144,259 @@ const Modal = ({
           ? modal.onConfirm(value, url, groupId)
           : modal.type === "create-service"
             ? modal.onConfirm(value, url, groupId)
+            : modal.type === "create-workflow" || modal.type === "edit-workflow"
+              ? modal.onConfirm(
+                  value,
+                  workflowMode,
+                  workflowPinned,
+                  workflowOpenStrategy,
+                  workflowServiceIds
+                )
           : modal.onConfirm(value)
     if (ok) {
       onConfirm()
     }
   }
 
+  const isWorkflowModal =
+    modal.type === "create-workflow" || modal.type === "edit-workflow"
+
   return (
     <div className="modal-backdrop">
-      <div className="modal">
+      <div
+        className={clsx(
+          "modal",
+          isWorkflowModal && ["modal--wide", "modal--workflow"]
+        )}>
         <div className="modal__title">{modal.title}</div>
-        <div className="modal__body">
+        <div className={clsx("modal__body", isWorkflowModal && "modal__body--workflow")}>
           {modal.type === "confirm" ? (
             <p>{modal.message}</p>
           ) : modal.type === "edit-service" || modal.type === "create-service" ? (
             <>
-              <input
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-                placeholder={t("placeholderServiceName")}
-              />
-              <input
-                value={url}
-                onChange={(event) => setUrl(event.target.value)}
-                placeholder={t("placeholderUrlTemplate")}
-              />
-              <select
-                className="modal__select"
-                value={groupId}
-                onChange={(event) => {
-                  const nextValue = event.target.value
-                  if (nextValue === NEW_GROUP_ID) {
-                    onRequestCreateGroup?.({
-                      mode: modal.type === "edit-service" ? "edit" : "create",
-                      serviceId:
-                        modal.type === "edit-service" ? modal.serviceId : undefined,
-                      name: value,
-                      url,
-                      groupId
-                    })
-                    return
-                  }
-                  setGroupId(nextValue)
-                }}>
-                <option value={DEFAULT_GROUP_ID}>{t("optionDefaultGroup")}</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.icon} {group.name}
-                  </option>
-                ))}
-                <option value={NEW_GROUP_ID}>{t("optionNewGroup")}</option>
-              </select>
+              <div className="modal__field">
+                <FieldLabel
+                  label={t("labelServiceName")}
+                  help={t("helpServiceName")}
+                />
+                <input
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  placeholder={t("placeholderServiceName")}
+                />
+              </div>
+              <div className="modal__field">
+                <FieldLabel
+                  label={t("labelServiceUrl")}
+                  help={t("helpServiceUrl")}
+                />
+                <input
+                  value={url}
+                  onChange={(event) => setUrl(event.target.value)}
+                  placeholder={t("placeholderUrlTemplate")}
+                />
+              </div>
+              <div className="modal__field">
+                <FieldLabel
+                  label={t("labelServiceGroup")}
+                  help={t("helpServiceGroup")}
+                />
+                <select
+                  className="modal__select"
+                  value={groupId}
+                  onChange={(event) => {
+                    const nextValue = event.target.value
+                    if (nextValue === NEW_GROUP_ID) {
+                      onRequestCreateGroup?.({
+                        mode: modal.type === "edit-service" ? "edit" : "create",
+                        serviceId:
+                          modal.type === "edit-service" ? modal.serviceId : undefined,
+                        name: value,
+                        url,
+                        groupId
+                      })
+                      return
+                    }
+                    setGroupId(nextValue)
+                  }}>
+                  <option value={DEFAULT_GROUP_ID}>{t("optionDefaultGroup")}</option>
+                  {groups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.icon} {group.name}
+                    </option>
+                  ))}
+                  <option value={NEW_GROUP_ID}>{t("optionNewGroup")}</option>
+                </select>
+              </div>
             </>
           ) : modal.type === "create-group" ? (
             <>
               <div className="modal__hint">
                 {t("hintGroupServiceResponse")}
               </div>
-              <input
-                value={value}
-                onChange={(event) => setValue(event.target.value)}
-                maxLength={MAX_GROUP_NAME_LENGTH}
-                placeholder={t("placeholderGroupName")}
-              />
-              <select
-                className="modal__select"
-                value={icon}
-                onChange={(event) => setIcon(event.target.value)}>
-                {ICONS.map((item) => (
-                  <option key={item} value={item}>
-                    {item}
-                  </option>
-                ))}
-              </select>
+              <div className="modal__field">
+                <FieldLabel
+                  label={t("labelGroupName")}
+                  help={t("helpGroupName")}
+                />
+                <input
+                  value={value}
+                  onChange={(event) => setValue(event.target.value)}
+                  maxLength={MAX_GROUP_NAME_LENGTH}
+                  placeholder={t("placeholderGroupName")}
+                />
+              </div>
+              <div className="modal__field">
+                <FieldLabel
+                  label={t("labelGroupIcon")}
+                  help={t("helpGroupIcon")}
+                />
+                <select
+                  className="modal__select"
+                  value={icon}
+                  onChange={(event) => setIcon(event.target.value)}>
+                  {ICONS.map((item) => (
+                    <option key={item} value={item}>
+                      {item}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : modal.type === "create-workflow" || modal.type === "edit-workflow" ? (
+            <>
+              <div className="modal__hint">{t("hintWorkflowServices")}</div>
+              <div className="modal__field-grid modal__field-grid--workflow">
+                <div className="modal__field">
+                  <FieldLabel
+                    label={t("labelWorkflowName")}
+                    help={t("helpWorkflowName")}
+                  />
+                  <input
+                    value={value}
+                    onChange={(event) => setValue(event.target.value)}
+                    placeholder={t("placeholderWorkflowName")}
+                  />
+                </div>
+                <div className="modal__field">
+                  <FieldLabel
+                    label={t("labelWorkflowMode")}
+                    help={t("helpWorkflowMode")}
+                  />
+                  <select
+                    className="modal__select"
+                    value={workflowMode}
+                    onChange={(event) => setWorkflowMode(event.target.value as WorkflowMode)}>
+                    <option value="both">{t("optionWorkflowModeBoth")}</option>
+                    <option value="domain">{t("optionWorkflowModeDomain")}</option>
+                    <option value="text">{t("optionWorkflowModeText")}</option>
+                  </select>
+                </div>
+                <div className="modal__field">
+                  <FieldLabel
+                    label={t("labelWorkflowOpenStrategy")}
+                    help={t("helpWorkflowOpenStrategy")}
+                  />
+                  <select
+                    className="modal__select"
+                    value={workflowOpenStrategy}
+                    onChange={(event) =>
+                      setWorkflowOpenStrategy(event.target.value as WorkflowOpenStrategy)
+                    }>
+                    <option value="foreground-first">
+                      {t("optionWorkflowOpenForegroundFirst")}
+                    </option>
+                    <option value="background-all">
+                      {t("optionWorkflowOpenBackgroundAll")}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal__field workflow-editor__panel">
+                <FieldLabel
+                  label={t("workflowSelectedSteps")}
+                  help={t("helpWorkflowSelectedSteps")}
+                />
+                <div className="workflow-editor__scroll">
+                  {selectedWorkflowServices.length > 0 ? (
+                    <DndContext
+                      sensors={workflowSensors}
+                      onDragEnd={handleWorkflowStepDragEnd}>
+                      <SortableContext
+                        items={selectedWorkflowServices.map((service) =>
+                          asWorkflowStepDragId(service.id)
+                        )}
+                        strategy={verticalListSortingStrategy}>
+                        <ol className="workflow-steps-editor">
+                          {selectedWorkflowServices.map((service, index) => (
+                            <SortableWorkflowStep
+                              key={service.id}
+                              service={service}
+                              index={index}
+                              onRemove={toggleWorkflowService}
+                            />
+                          ))}
+                        </ol>
+                      </SortableContext>
+                    </DndContext>
+                  ) : (
+                    <div className="workflow-steps-empty">{t("workflowNoSteps")}</div>
+                  )}
+                </div>
+              </div>
+              <div className="modal__field workflow-editor__panel">
+                <FieldLabel
+                  label={t("workflowAvailableServices")}
+                  help={t("helpWorkflowAvailableServices")}
+                />
+                <input
+                  value={workflowSearch}
+                  onChange={(event) => setWorkflowSearch(event.target.value)}
+                  placeholder={t("workflowSearchPlaceholder")}
+                />
+                <div className="workflow-service-library">
+                  {filteredWorkflowServices.length > 0 ? (
+                    filteredWorkflowServices.map((service) => {
+                      return (
+                        <div key={service.id} className="workflow-service-library__item">
+                          <div className="workflow-service-library__content">
+                            <div className="workflow-service-library__name">{service.name}</div>
+                            <div
+                              className="workflow-service-library__template"
+                              title={service.urlTemplate}>
+                              {service.urlTemplate}
+                            </div>
+                          </div>
+                          <button
+                            className="ghost-button"
+                            type="button"
+                            onClick={() => toggleWorkflowService(service.id)}>
+                            {t("modalButtonAdd")}
+                          </button>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="workflow-steps-empty">
+                      {t("workflowNoAvailableServices")}
+                    </div>
+                  )}
+                </div>
+              </div>
             </>
           ) : (
-            <>
+            <div className="modal__field">
+              <FieldLabel
+                label={t("labelGroupName")}
+                help={t("helpGroupName")}
+              />
               <input
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 maxLength={MAX_GROUP_NAME_LENGTH}
                 placeholder={t("placeholderGroupName")}
               />
-            </>
+            </div>
           )}
         </div>
         <div className="modal__actions">
@@ -1636,7 +2406,9 @@ const Modal = ({
           <button className="primary" onClick={handlePrimary}>
             {modal.type === "confirm"
               ? t("modalButtonConfirm")
-              : modal.type === "create-group" || modal.type === "create-service"
+              : modal.type === "create-group" ||
+                  modal.type === "create-service" ||
+                  modal.type === "create-workflow"
                 ? t("modalButtonAdd")
                 : t("modalButtonSave")}
           </button>

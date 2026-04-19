@@ -1,6 +1,6 @@
 import { Storage } from "@plasmohq/storage"
 
-type UsageStats = {
+export type UsageStats = {
   services: Record<string, number>
   groups: Record<string, number>
 }

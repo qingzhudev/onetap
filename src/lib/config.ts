@@ -1,4 +1,8 @@
-import { MAX_GROUP_COUNT, MAX_GROUP_NAME_LENGTH, DEFAULT_GROUP_ID } from "./constants"
+import {
+  MAX_GROUP_COUNT,
+  MAX_GROUP_NAME_LENGTH,
+  DEFAULT_GROUP_ID
+} from "./constants"
 import type {
   AnalysisService,
   LastOperation,
@@ -6,6 +10,7 @@ import type {
   ServiceGroup,
   UserConfig
 } from "./types"
+import type { Workflow, WorkflowMode, WorkflowOpenStrategy } from "./types"
 
 const now = () => new Date().toISOString()
 
@@ -20,10 +25,22 @@ export const createDefaultConfig = (): UserConfig => {
 
 export const createInitialConfig = (): UserConfig => ({
   services: [],
+  workflows: [],
+  workflowOrder: [],
   groups: [],
   groupOrder: [DEFAULT_GROUP_ID],
   preferences: createDefaultPreferences(),
   lastOperations: createDefaultLastOperations()
+})
+
+export const serializeConfigForExport = (config: UserConfig): UserConfig => ({
+  services: config.services,
+  workflows: config.workflows,
+  workflowOrder: config.workflowOrder,
+  groups: config.groups,
+  groupOrder: config.groupOrder,
+  preferences: config.preferences,
+  lastOperations: config.lastOperations
 })
 
 export const normalizeConfig = (config?: UserConfig | null): UserConfig => {
@@ -33,6 +50,12 @@ export const normalizeConfig = (config?: UserConfig | null): UserConfig => {
 
   const services: Partial<AnalysisService>[] = Array.isArray(config.services)
     ? config.services
+    : []
+  const workflows: Partial<Workflow>[] = Array.isArray(config.workflows)
+    ? config.workflows
+    : []
+  const workflowOrder: string[] = Array.isArray(config.workflowOrder)
+    ? config.workflowOrder
     : []
   const groups: ServiceGroup[] = Array.isArray(config.groups) ? config.groups : []
   const groupOrder: string[] = Array.isArray(config.groupOrder)
@@ -55,6 +78,27 @@ export const normalizeConfig = (config?: UserConfig | null): UserConfig => {
   })
 
   const serviceIds = new Set(normalizedServices.map((service) => service.id))
+  const normalizedWorkflows: Workflow[] = workflows.map((workflow) => ({
+    id: typeof workflow.id === "string" ? workflow.id : "",
+    name: typeof workflow.name === "string" ? workflow.name : "",
+    serviceIds: Array.isArray(workflow.serviceIds)
+      ? workflow.serviceIds.filter((id): id is string => typeof id === "string" && serviceIds.has(id))
+      : [],
+    mode: normalizeWorkflowMode(workflow.mode),
+    pinned: typeof workflow.pinned === "boolean" ? workflow.pinned : false,
+    openStrategy: normalizeWorkflowOpenStrategy(workflow.openStrategy)
+  }))
+  const workflowIds = new Set(
+    normalizedWorkflows.filter((workflow) => workflow.id).map((workflow) => workflow.id)
+  )
+  const normalizedWorkflowOrder = workflowOrder.filter((id) => workflowIds.has(id))
+
+  normalizedWorkflows.forEach((workflow) => {
+    if (workflow.id && !normalizedWorkflowOrder.includes(workflow.id)) {
+      normalizedWorkflowOrder.push(workflow.id)
+    }
+  })
+
   const normalizedGroups = groups.slice(0, MAX_GROUP_COUNT).map((group, index) => ({
     ...group,
     order: index,
@@ -78,6 +122,8 @@ export const normalizeConfig = (config?: UserConfig | null): UserConfig => {
 
   return {
     services: normalizedServices,
+    workflows: normalizedWorkflows.filter((workflow) => workflow.id),
+    workflowOrder: normalizedWorkflowOrder,
     groups: normalizedGroups,
     groupOrder: normalizedOrder,
     preferences,
@@ -144,6 +190,13 @@ export const getOrderedGroups = (config: UserConfig) => {
     .filter((group): group is ServiceGroup => Boolean(group))
 }
 
+export const getOrderedWorkflows = (config: UserConfig) => {
+  const workflowMap = new Map(config.workflows.map((workflow) => [workflow.id, workflow]))
+  return config.workflowOrder
+    .map((id) => workflowMap.get(id))
+    .filter((workflow): workflow is Workflow => Boolean(workflow))
+}
+
 export const clampGroupName = (name: string) => name.trim().slice(0, MAX_GROUP_NAME_LENGTH)
 
 const createDefaultPreferences = (): Preferences => ({
@@ -173,7 +226,12 @@ const normalizePreferences = (preferences?: Preferences | null): Preferences => 
 const normalizeLastOperation = (
   operation?: Partial<LastOperation> | null
 ): LastOperation => ({
-  type: operation?.type === "service" || operation?.type === "group" ? operation.type : null,
+  type:
+    operation?.type === "service" ||
+    operation?.type === "group" ||
+    operation?.type === "workflow"
+      ? operation.type
+      : null,
   id: typeof operation?.id === "string" ? operation.id : null,
   name: typeof operation?.name === "string" ? operation.name : null,
   timestamp: typeof operation?.timestamp === "string" ? operation.timestamp : now()
@@ -196,3 +254,21 @@ const hasSupportedVariables = (
       typeof service.supportedVariables.domain === "boolean" &&
       typeof service.supportedVariables.text === "boolean"
   )
+
+const normalizeWorkflowMode = (mode?: WorkflowMode | null): WorkflowMode => {
+  if (mode === "domain" || mode === "text" || mode === "both") {
+    return mode
+  }
+
+  return "both"
+}
+
+const normalizeWorkflowOpenStrategy = (
+  value?: WorkflowOpenStrategy | null
+): WorkflowOpenStrategy => {
+  if (value === "foreground-first" || value === "background-all") {
+    return value
+  }
+
+  return "foreground-first"
+}

@@ -17,8 +17,22 @@ export interface ServiceGroup {
   serviceIds: string[]
 }
 
+export type WorkflowMode = OperationMode | "both"
+export type WorkflowOpenStrategy = "foreground-first" | "background-all"
+
+export interface Workflow {
+  id: string
+  name: string
+  serviceIds: string[]
+  mode: WorkflowMode
+  pinned: boolean
+  openStrategy: WorkflowOpenStrategy
+}
+
 export interface UserConfig {
   services: AnalysisService[]
+  workflows: Workflow[]
+  workflowOrder: string[]
   groups: ServiceGroup[]
   groupOrder: string[]
   preferences: Preferences
@@ -35,7 +49,7 @@ export interface Preferences {
 }
 
 export interface LastOperation {
-  type: "service" | "group" | null
+  type: "service" | "group" | "workflow" | null
   id: string | null
   name: string | null
   timestamp: string
