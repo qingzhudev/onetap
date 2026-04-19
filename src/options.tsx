@@ -41,6 +41,7 @@ import {
 import { createId } from "~lib/id"
 import { t } from "~lib/i18n"
 import { getConfig, saveConfig, exportConfig, importConfig, exportDomainHistory, exportKeywordHistory } from "~lib/storage"
+import { trackEventWithNotify, exportEvents, exportEventsAsCsv, clearEvents } from "~lib/analytics"
 import { useToast } from "~lib/toast"
 import type { AnalysisService, ServiceGroup, UserConfig } from "~lib/types"
 import "~styles/options.css"
@@ -397,6 +398,9 @@ const OptionsPage = () => {
       setIsReady(true)
     })
 
+    // Track options page open
+    void trackEventWithNotify("options_open", {})
+
     return () => {
       isMounted = false
     }
@@ -501,6 +505,9 @@ const OptionsPage = () => {
           groups: [...prev.groups, newGroup],
           groupOrder: appendGroupId(prev.groupOrder, newGroup.id)
         }))
+
+        // Track group create
+        void trackEventWithNotify("group_create", { groupId: newGroupId, groupName: trimmed, icon })
 
         setGroupIcon(icon)
         if (afterCreate) {
@@ -608,6 +615,9 @@ const OptionsPage = () => {
           groups: prev.groups.filter((item) => item.id !== groupId),
           groupOrder: prev.groupOrder.filter((id) => id !== groupId)
         }))
+
+        // Track group delete
+        void trackEventWithNotify("group_delete", { groupId, groupName: group.name })
       }
     })
   }
@@ -651,6 +661,9 @@ const OptionsPage = () => {
             serviceIds: group.serviceIds.filter((id) => id !== serviceId)
           }))
         }))
+
+        // Track service delete
+        void trackEventWithNotify("service_delete", { serviceId, serviceName: service.name })
       }
     })
   }
@@ -709,6 +722,15 @@ const OptionsPage = () => {
       }
 
       return updated
+    })
+
+    // Track service create
+    void trackEventWithNotify("service_create", {
+      serviceId: newService.id,
+      serviceName: trimmedName,
+      urlTemplate: trimmedUrl,
+      groupId,
+      supportedVariables
     })
 
     return true
@@ -790,6 +812,15 @@ const OptionsPage = () => {
       }
     })
 
+    // Track service edit
+    void trackEventWithNotify("service_edit", {
+      serviceId,
+      serviceName: trimmedName,
+      urlTemplate: trimmedUrl,
+      groupId,
+      supportedVariables
+    })
+
     return true
   }
 
@@ -806,6 +837,9 @@ const OptionsPage = () => {
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
       notify(t("exportSuccess"))
+
+      // Track config export
+      void trackEventWithNotify("config_export", { format: "json" })
     } catch (error) {
       console.error("Export failed:", error)
       notify(t("exportFailed"))
@@ -860,6 +894,62 @@ const OptionsPage = () => {
     }
   }
 
+  const handleExportAnalyticsJson = async () => {
+    try {
+      const eventsJson = await exportEvents()
+      if (!eventsJson || eventsJson === "[]") {
+        notify(t("exportAnalyticsEmpty"))
+        return
+      }
+      const blob = new Blob([eventsJson], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `onetap-analytics-${new Date().toISOString().split("T")[0]}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      notify(t("exportAnalyticsSuccess"))
+    } catch (error) {
+      console.error("Export analytics failed:", error)
+      notify(t("exportAnalyticsFailed"))
+    }
+  }
+
+  const handleExportAnalyticsCsv = async () => {
+    try {
+      const csvContent = await exportEventsAsCsv()
+      if (!csvContent) {
+        notify(t("exportAnalyticsEmpty"))
+        return
+      }
+      const blob = new Blob([csvContent], { type: "text/csv" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `onetap-analytics-${new Date().toISOString().split("T")[0]}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      notify(t("exportAnalyticsSuccess"))
+    } catch (error) {
+      console.error("Export analytics CSV failed:", error)
+      notify(t("exportAnalyticsFailed"))
+    }
+  }
+
+  const handleClearAnalytics = async () => {
+    try {
+      await clearEvents()
+      notify(t("clearAnalyticsSuccess"))
+    } catch (error) {
+      console.error("Clear analytics failed:", error)
+      notify(t("clearAnalyticsFailed"))
+    }
+  }
+
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -871,6 +961,9 @@ const OptionsPage = () => {
         const importedConfig = await importConfig(content)
         setConfig(importedConfig)
         notify(t("importSuccess"))
+
+        // Track config import
+        void trackEventWithNotify("config_import", {})
       } catch (error) {
         console.error("Import failed:", error)
         notify(t("importFailed"))
@@ -1191,7 +1284,7 @@ const OptionsPage = () => {
                 >
                   {t("optionsExportDomains")}
                 </button>
-                <button 
+                <button
                   className="dropdown-item"
                   onClick={() => {
                     handleExportKeywords()
@@ -1199,6 +1292,34 @@ const OptionsPage = () => {
                   }}
                 >
                   {t("optionsExportKeywords")}
+                </button>
+                <div className="dropdown-divider" />
+                <button
+                  className="dropdown-item"
+                  onClick={() => {
+                    handleExportAnalyticsJson()
+                    setShowConfigMenu(false)
+                  }}
+                >
+                  {t("optionsExportAnalyticsJson")}
+                </button>
+                <button
+                  className="dropdown-item"
+                  onClick={() => {
+                    handleExportAnalyticsCsv()
+                    setShowConfigMenu(false)
+                  }}
+                >
+                  {t("optionsExportAnalyticsCsv")}
+                </button>
+                <button
+                  className="dropdown-item danger"
+                  onClick={() => {
+                    handleClearAnalytics()
+                    setShowConfigMenu(false)
+                  }}
+                >
+                  {t("optionsClearAnalytics")}
                 </button>
               </div>
             )}

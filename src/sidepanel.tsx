@@ -12,6 +12,7 @@ import { t } from "~lib/i18n"
 import { openTab, openTabsInOrder } from "~lib/open"
 import { getConfig, subscribeConfig, addDomainToHistory, addKeywordToHistory } from "~lib/storage"
 import { incrementUsageStats } from "~lib/stats"
+import { trackEventWithNotify } from "~lib/analytics"
 import { useToast } from "~lib/toast"
 import type {
   AnalysisService,
@@ -77,6 +78,9 @@ const SidePanel = () => {
         getConfig(),
         queryActiveTabUrl()
       ])
+
+      // Track sidepanel open
+      void trackEventWithNotify("sidepanel_open", { domain: tabUrl })
 
       if (!isMounted) {
         return
@@ -293,6 +297,12 @@ const SidePanel = () => {
     // Middle click (button 1) → open in background
     const active = event.button === 0
 
+    // Track service click
+    void trackEventWithNotify(
+      active ? "service_click_foreground" : "service_click_background",
+      { serviceId: service.id, serviceName: service.name, mode }
+    )
+
     void handleOpenService(service, active)
   }
 
@@ -368,12 +378,21 @@ const SidePanel = () => {
     // Middle click (button 1) → open in background
     const active = event.button === 0
 
+    // Track group click
+    void trackEventWithNotify(
+      active ? "group_click_foreground" : "group_click_background",
+      { groupId: group.id, groupName: group.name, mode, serviceCount: group.serviceIds.length }
+    )
+
     void handleOpenGroup(group, active)
   }
 
   const handleOpenOptions = async () => {
     const currentTab = await queryActiveTab()
     const windowId = currentTab?.windowId ?? null
+
+    // Track open settings
+    void trackEventWithNotify("open_settings", { domain })
 
     if (chrome?.runtime?.openOptionsPage) {
       await chrome.runtime.openOptionsPage()
@@ -389,6 +408,9 @@ const SidePanel = () => {
   }
 
   const handleUseSelection = async () => {
+    // Track use selection
+    void trackEventWithNotify("use_selection", { mode })
+
     setIsSelecting(true)
     await detectSelectionAndSetMode()
     setIsSelecting(false)
@@ -423,7 +445,10 @@ const SidePanel = () => {
                 mode === "domain" ? "is-active" : ""
               }`}
               title={t("popupModeDomainTooltip")}
-              onClick={() => setMode("domain")}>
+              onClick={() => {
+                setMode("domain")
+                void trackEventWithNotify("mode_switch", { mode: "domain" })
+              }}>
               <Globe size={17} />
             </button>
             <button
@@ -431,7 +456,10 @@ const SidePanel = () => {
                 mode === "text" ? "is-active" : ""
               }`}
               title={t("popupModeTextTooltip")}
-              onClick={() => setMode("text")}>
+              onClick={() => {
+                setMode("text")
+                void trackEventWithNotify("mode_switch", { mode: "text" })
+              }}>
               <FileText size={17} />
             </button>
           </div>

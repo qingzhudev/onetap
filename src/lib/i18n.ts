@@ -87,6 +87,14 @@ const dictionaries: Dictionaries = {
     optionsImportJson: "Import JSON",
     optionsExportCode: "Export config code",
     optionsImportCode: "Import config code",
+    optionsExportAnalyticsJson: "Export analytics (JSON)",
+    optionsExportAnalyticsCsv: "Export analytics (CSV)",
+    optionsClearAnalytics: "Clear analytics data",
+    exportAnalyticsSuccess: "Analytics exported successfully",
+    exportAnalyticsFailed: "Failed to export analytics",
+    exportAnalyticsEmpty: "No analytics data to export",
+    clearAnalyticsSuccess: "Analytics cleared successfully",
+    clearAnalyticsFailed: "Failed to clear analytics",
     modalImportJsonTitle: "Import JSON config",
     modalImportJsonDesc: "Choose a previously exported JSON config file.",
     modalImportPreview: "Config preview:",
@@ -202,7 +210,15 @@ const dictionaries: Dictionaries = {
     optionsExportJson: "导出为 JSON",
     optionsImportJson: "导入 JSON",
     optionsExportCode: "导出配置码",
-    optionsImportCode: "导入配置码"
+    optionsImportCode: "导入配置码",
+    optionsExportAnalyticsJson: "导出埋点数据 (JSON)",
+    optionsExportAnalyticsCsv: "导出埋点数据 (CSV)",
+    optionsClearAnalytics: "清空埋点数据",
+    exportAnalyticsSuccess: "埋点数据导出成功",
+    exportAnalyticsFailed: "导出埋点数据失败",
+    exportAnalyticsEmpty: "暂无埋点数据",
+    clearAnalyticsSuccess: "埋点数据已清空",
+    clearAnalyticsFailed: "清空埋点数据失败"
   }
 }
 
