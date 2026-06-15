@@ -582,9 +582,17 @@ type InsertPosition = {
 
 type OptionsTab = "workflows" | "services"
 
+const getInitialOptionsTab = (): OptionsTab => {
+  if (typeof window === "undefined") {
+    return "services"
+  }
+
+  return window.location.hash === "#workflows" ? "workflows" : "services"
+}
+
 const OptionsPage = () => {
   const [config, setConfig] = useState<UserConfig>(() => createInitialConfig())
-  const [activeTab, setActiveTab] = useState<OptionsTab>("workflows")
+  const [activeTab, setActiveTab] = useState<OptionsTab>(getInitialOptionsTab)
   const [isReady, setIsReady] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [insertPosition, setInsertPosition] = useState<InsertPosition | null>(null)
@@ -595,6 +603,15 @@ const OptionsPage = () => {
   const [showConfigMenu, setShowConfigMenu] = useState(false)
   const configMenuRef = useRef<HTMLDivElement>(null)
   const { toasts, notify } = useToast()
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      setActiveTab(getInitialOptionsTab())
+    }
+
+    window.addEventListener("hashchange", handleHashChange)
+    return () => window.removeEventListener("hashchange", handleHashChange)
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

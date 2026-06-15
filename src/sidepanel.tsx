@@ -589,7 +589,25 @@ const SidePanel = () => {
     const currentTab = await queryActiveTab()
     const windowId = currentTab?.windowId ?? null
 
-    if (chrome?.runtime?.openOptionsPage) {
+    if (chrome?.tabs && chrome?.runtime?.getURL) {
+      const optionsUrl = chrome.runtime.getURL("options.html")
+      const targetUrl = `${optionsUrl}#services`
+      const optionsTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
+        chrome.tabs.query({}, (tabs) => {
+          resolve(tabs.filter((tab) => tab.url?.startsWith(optionsUrl)))
+        })
+      })
+      const existingTab = optionsTabs[0]
+
+      if (existingTab?.id) {
+        await chrome.tabs.update(existingTab.id, { active: true, url: targetUrl })
+        if (existingTab.windowId && chrome.windows?.update) {
+          await chrome.windows.update(existingTab.windowId, { focused: true })
+        }
+      } else {
+        await chrome.tabs.create({ active: true, url: targetUrl })
+      }
+    } else if (chrome?.runtime?.openOptionsPage) {
       await chrome.runtime.openOptionsPage()
     }
 
