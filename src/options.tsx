@@ -582,17 +582,9 @@ type InsertPosition = {
 
 type OptionsTab = "workflows" | "services"
 
-const getInitialOptionsTab = (): OptionsTab => {
-  if (typeof window === "undefined") {
-    return "services"
-  }
-
-  return window.location.hash === "#workflows" ? "workflows" : "services"
-}
-
 const OptionsPage = () => {
   const [config, setConfig] = useState<UserConfig>(() => createInitialConfig())
-  const [activeTab, setActiveTab] = useState<OptionsTab>(getInitialOptionsTab)
+  const [activeTab, setActiveTab] = useState<OptionsTab>("services")
   const [isReady, setIsReady] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [insertPosition, setInsertPosition] = useState<InsertPosition | null>(null)
@@ -605,12 +597,18 @@ const OptionsPage = () => {
   const { toasts, notify } = useToast()
 
   useEffect(() => {
-    const handleHashChange = () => {
-      setActiveTab(getInitialOptionsTab())
+    if (typeof chrome === "undefined" || !chrome.runtime?.onMessage) {
+      return
     }
 
-    window.addEventListener("hashchange", handleHashChange)
-    return () => window.removeEventListener("hashchange", handleHashChange)
+    const handleMessage = (message: { type?: string; tab?: OptionsTab }) => {
+      if (message.type === "SHOW_OPTIONS_TAB" && message.tab) {
+        setActiveTab(message.tab)
+      }
+    }
+
+    chrome.runtime.onMessage.addListener(handleMessage)
+    return () => chrome.runtime.onMessage.removeListener(handleMessage)
   }, [])
 
   useEffect(() => {

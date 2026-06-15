@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   FileText,
   Globe,
-  RotateCcw,
   Settings,
   TrendingUp
 } from "lucide-react"
@@ -27,7 +26,6 @@ import {
   addKeywordToHistory,
   getConfig,
   getLastOperation,
-  getRecentOperations,
   saveLastOperation,
   saveRecentOperation,
   subscribeConfig
@@ -76,12 +74,6 @@ const SidePanel = () => {
   const [lastOperations, setLastOperations] = useState<Record<OperationMode, LastOperation>>({
     domain: EMPTY_LAST_OPERATION,
     text: EMPTY_LAST_OPERATION
-  })
-  const [recentOperations, setRecentOperations] = useState<
-    Record<OperationMode, LastOperation[]>
-  >({
-    domain: [],
-    text: []
   })
   const { toasts, notify } = useToast()
 
@@ -152,17 +144,13 @@ const SidePanel = () => {
         tabUrl,
         nextUsageStats,
         domainLastOperation,
-        textLastOperation,
-        domainRecentOperations,
-        textRecentOperations
+        textLastOperation
       ] = await Promise.all([
         getConfig(),
         queryActiveTabUrl(),
         getUsageStats(),
         getLastOperation("domain"),
-        getLastOperation("text"),
-        getRecentOperations("domain"),
-        getRecentOperations("text")
+        getLastOperation("text")
       ])
 
       if (!isMounted) {
@@ -174,10 +162,6 @@ const SidePanel = () => {
       setLastOperations({
         domain: domainLastOperation,
         text: textLastOperation
-      })
-      setRecentOperations({
-        domain: domainRecentOperations,
-        text: textRecentOperations
       })
       setDomain(getRootDomain(tabUrl))
 
@@ -591,7 +575,6 @@ const SidePanel = () => {
 
     if (chrome?.tabs && chrome?.runtime?.getURL) {
       const optionsUrl = chrome.runtime.getURL("options.html")
-      const targetUrl = `${optionsUrl}#services`
       const optionsTabs = await new Promise<chrome.tabs.Tab[]>((resolve) => {
         chrome.tabs.query({}, (tabs) => {
           resolve(tabs.filter((tab) => tab.url?.startsWith(optionsUrl)))
@@ -600,12 +583,20 @@ const SidePanel = () => {
       const existingTab = optionsTabs[0]
 
       if (existingTab?.id) {
-        await chrome.tabs.update(existingTab.id, { active: true, url: targetUrl })
+        await chrome.tabs.update(existingTab.id, { active: true })
         if (existingTab.windowId && chrome.windows?.update) {
           await chrome.windows.update(existingTab.windowId, { focused: true })
         }
+        await chrome.runtime
+          .sendMessage({
+            type: "SHOW_OPTIONS_TAB",
+            tab: "services"
+          })
+          .catch(() => {
+            // Ignore if the options page is not ready to receive messages yet.
+          })
       } else {
-        await chrome.tabs.create({ active: true, url: targetUrl })
+        await chrome.tabs.create({ active: true, url: optionsUrl })
       }
     } else if (chrome?.runtime?.openOptionsPage) {
       await chrome.runtime.openOptionsPage()
@@ -646,6 +637,9 @@ const SidePanel = () => {
         key: `replay-service-${service.id}`,
         dedupeKey: `service:${service.id}`,
         name: service.name,
+        countLabel: usageStats.services[service.id]
+          ? `${usageStats.services[service.id]}x`
+          : undefined,
         onMouseDown: handleServiceClick(service)
       }
     }
@@ -681,87 +675,16 @@ const SidePanel = () => {
       countLabel: `${runnableCount}`,
       onMouseDown: handleGroupClick(group)
     }
-  }, [getRunnableServiceCount, handleGroupClick, handleServiceClick, lastOperations, mode, visibleServices])
-
-  const recentShortcuts = useMemo<ShortcutItem[]>(() => {
-    const lastOperation = lastOperations[mode]
-
-    return recentOperations[mode]
-      .filter((operation) => {
-        if (!lastOperation.id || !lastOperation.type) {
-          return true
-        }
-
-        return !(
-          operation.type === lastOperation.type && operation.id === lastOperation.id
-        )
-      })
-      .map<ShortcutItem | null>((operation) => {
-        if (!operation.id || !operation.type) {
-          return null
-        }
-
-        if (operation.type === "service") {
-          const service = visibleServices.find((item) => item.id === operation.id)
-          if (!service) {
-            return null
-          }
-
-          return {
-            key: `recent-service-${service.id}`,
-            dedupeKey: `service:${service.id}`,
-            name: service.name,
-            countLabel: usageStats.services[service.id]
-              ? `${usageStats.services[service.id]}x`
-              : undefined,
-            onMouseDown: handleServiceClick(service)
-          }
-        }
-
-        if (operation.type === "workflow") {
-          const workflow = getWorkflowById(operation.id)
-          const runnableCount = workflow ? getRunnableWorkflowServices(workflow).length : 0
-
-          if (!workflow || runnableCount === 0) {
-            return null
-          }
-
-          return {
-            key: `recent-workflow-${workflow.id}`,
-            dedupeKey: `workflow:${workflow.id}`,
-            name: workflow.name,
-            countLabel: `${runnableCount}`,
-            onMouseDown: handleWorkflowClick(workflow)
-          }
-        }
-
-        const group = getGroupById(operation.id)
-        const runnableCount = group ? getRunnableServiceCount(group) : 0
-
-        if (!group || runnableCount === 0) {
-          return null
-        }
-
-        return {
-          key: `recent-group-${group.id}`,
-          dedupeKey: `group:${group.id}`,
-          name: group.name,
-          countLabel: `${runnableCount}`,
-          onMouseDown: handleGroupClick(group)
-        }
-      })
-      .filter((item): item is ShortcutItem => item !== null)
-      .slice(0, 4)
   }, [
+    getGroupById,
     getRunnableServiceCount,
     getRunnableWorkflowServices,
+    getWorkflowById,
     handleGroupClick,
     handleServiceClick,
     handleWorkflowClick,
-    getWorkflowById,
     lastOperations,
     mode,
-    recentOperations,
     usageStats.services,
     visibleServices
   ])
@@ -797,7 +720,7 @@ const SidePanel = () => {
 
         return left.name.localeCompare(right.name)
       })
-      .slice(0, 4)
+      .slice(0, 3)
       .map((service) => ({
         key: `top-service-${service.id}`,
         dedupeKey: `service:${service.id}`,
@@ -809,9 +732,13 @@ const SidePanel = () => {
 
   const suggestionShortcuts = useMemo<ShortcutItem[]>(() => {
     const seen = new Set<string>()
-    const merged = [...recentShortcuts, ...topUsedShortcuts].filter(
-      (item) => !item.dedupeKey.startsWith("workflow:")
-    )
+    const replayQuickPick =
+      replayShortcut && !replayShortcut.dedupeKey.startsWith("workflow:")
+        ? replayShortcut
+        : null
+    const merged = replayQuickPick
+      ? [...topUsedShortcuts, replayQuickPick]
+      : topUsedShortcuts
 
     return merged.filter((item) => {
       if (seen.has(item.dedupeKey)) {
@@ -820,8 +747,8 @@ const SidePanel = () => {
 
       seen.add(item.dedupeKey)
       return true
-    }).slice(0, 3)
-  }, [recentShortcuts, topUsedShortcuts])
+    })
+  }, [replayShortcut, topUsedShortcuts])
 
   const renderServiceItem = (service: AnalysisService) => (
     <li key={service.id}>
@@ -905,25 +832,6 @@ const SidePanel = () => {
                 {t("popupClearText")}
               </button>
             </div>
-          </section>
-        ) : null}
-
-        {replayShortcut ? (
-          <section className="quick-card">
-            <div className="quick-card__header">
-              <div className="quick-card__title">
-                <RotateCcw size={14} />
-                <span>{t("popupReplay")}</span>
-              </div>
-            </div>
-            <button
-              className="quick-card__action"
-              onMouseDown={replayShortcut.onMouseDown}>
-              <span className="quick-card__name">{replayShortcut.name}</span>
-              {replayShortcut.countLabel ? (
-                <span className="quick-card__meta">{replayShortcut.countLabel}</span>
-              ) : null}
-            </button>
           </section>
         ) : null}
 
