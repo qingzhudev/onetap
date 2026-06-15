@@ -1,6 +1,5 @@
 import { Storage } from "@plasmohq/storage"
 
-import { getEvents } from "./analytics"
 import { createDefaultConfig, normalizeConfig, serializeConfigForExport } from "./config"
 import { MAX_HISTORY_ITEMS } from "./constants"
 import type { LastOperation, OperationMode, UserConfig } from "./types"
@@ -13,8 +12,11 @@ const RECENT_OP_DOMAIN_KEY = "onetap:recent_ops:domain"
 const RECENT_OP_TEXT_KEY = "onetap:recent_ops:text"
 const DOMAIN_HISTORY_KEY = "onetap:history:domains"
 const KEYWORD_HISTORY_KEY = "onetap:history:keywords"
+const LEGACY_ANALYTICS_KEY = "onetap:analytics:v1"
 
 export const getConfig = async (): Promise<UserConfig> => {
+  void clearLegacyAnalyticsData()
+
   const stored = await storage.get<UserConfig>(CONFIG_KEY)
   if (stored) {
     return normalizeConfig(stored)
@@ -48,15 +50,12 @@ export const getLastOperation = async (
     return stored
   }
 
-  const fallback = await deriveOperationsFromAnalytics(mode)
-  return (
-    fallback.lastOperation || {
-      type: null,
-      id: null,
-      name: null,
-      timestamp: new Date().toISOString()
-    }
-  )
+  return {
+    type: null,
+    id: null,
+    name: null,
+    timestamp: new Date().toISOString()
+  }
 }
 
 export const saveLastOperation = async (
@@ -86,8 +85,7 @@ export const getRecentOperations = async (
     )
   }
 
-  const fallback = await deriveOperationsFromAnalytics(mode)
-  return fallback.recentOperations
+  return []
 }
 
 export const saveRecentOperation = async (
@@ -105,100 +103,6 @@ export const saveRecentOperation = async (
 
   await storage.set(key, recent)
   return recent
-}
-
-const deriveOperationsFromAnalytics = async (
-  mode: OperationMode
-): Promise<{
-  lastOperation: LastOperation | null
-  recentOperations: LastOperation[]
-}> => {
-  const events = await getEvents()
-  const recentOperations: LastOperation[] = []
-  const seen = new Set<string>()
-
-  for (let index = events.length - 1; index >= 0; index -= 1) {
-    const event = events[index]
-    const eventMode = event.data.mode
-
-    if (eventMode !== mode) {
-      continue
-    }
-
-    let operation: LastOperation | null = null
-
-    if (
-      event.eventType === "service_click_foreground" ||
-      event.eventType === "service_click_background"
-    ) {
-      const id = event.data.serviceId
-      const name = event.data.serviceName
-
-      if (typeof id === "string" && typeof name === "string") {
-        operation = {
-          type: "service",
-          id,
-          name,
-          timestamp: event.timestamp
-        }
-      }
-    }
-
-    if (
-      event.eventType === "workflow_click_foreground" ||
-      event.eventType === "workflow_click_background"
-    ) {
-      const id = event.data.workflowId
-      const name = event.data.workflowName
-
-      if (typeof id === "string" && typeof name === "string") {
-        operation = {
-          type: "workflow",
-          id,
-          name,
-          timestamp: event.timestamp
-        }
-      }
-    }
-
-    if (
-      event.eventType === "group_click_foreground" ||
-      event.eventType === "group_click_background"
-    ) {
-      const id = event.data.groupId
-      const name = event.data.groupName
-
-      if (typeof id === "string" && typeof name === "string") {
-        operation = {
-          type: "group",
-          id,
-          name,
-          timestamp: event.timestamp
-        }
-      }
-    }
-
-    if (!operation) {
-      continue
-    }
-
-    const key = `${operation.type}:${operation.id}`
-    if (seen.has(key)) {
-      continue
-    }
-
-    seen.add(key)
-    recentOperations.push(operation)
-
-    if (recentOperations.length >= MAX_HISTORY_ITEMS) {
-      break
-    }
-  }
-
-  return {
-    lastOperation: recentOperations[0] ?? null,
-    recentOperations
-  }
 }
 
 export const subscribeConfig = (listener: (config: UserConfig) => void) => {
@@ -287,4 +191,15 @@ export const exportDomainHistory = async (): Promise<string> => {
 export const exportKeywordHistory = async (): Promise<string> => {
   const history = await getKeywordHistory()
   return history.join("\n")
+}
+
+export const clearLegacyAnalyticsData = async (): Promise<void> => {
+  if (typeof chrome !== "undefined" && chrome.storage?.local?.remove) {
+    await new Promise<void>((resolve) => {
+      chrome.storage.local.remove(LEGACY_ANALYTICS_KEY, () => resolve())
+    })
+    return
+  }
+
+  await storage.set(LEGACY_ANALYTICS_KEY, [])
 }

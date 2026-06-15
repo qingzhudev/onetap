@@ -43,7 +43,6 @@ import {
 import { createId } from "~lib/id"
 import { t } from "~lib/i18n"
 import { getConfig, saveConfig, exportConfig, importConfig, exportDomainHistory, exportKeywordHistory } from "~lib/storage"
-import { trackEventWithNotify, exportEvents, exportEventsAsCsv, clearEvents } from "~lib/analytics"
 import { useToast } from "~lib/toast"
 import type {
   AnalysisService,
@@ -284,6 +283,10 @@ const WorkflowCard = ({
   canMoveUp: boolean
   canMoveDown: boolean
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false)
+  const previewServices = services.slice(0, 3)
+  const displayedServices = isExpanded ? services : previewServices
+  const remainingCount = Math.max(services.length - previewServices.length, 0)
   const modeLabel =
     workflow.mode === "domain"
       ? t("optionWorkflowModeDomain")
@@ -301,13 +304,13 @@ const WorkflowCard = ({
         <div className="workflow-card__title-wrap">
           <div className="workflow-card__title-row">
             <span className="workflow-card__title">{workflow.name}</span>
+            <span className="workflow-card__meta-badge">{modeLabel}</span>
             {workflow.pinned ? (
               <span className="workflow-card__badge">{t("workflowPinned")}</span>
             ) : null}
           </div>
           <div className="workflow-card__meta">
             <span>{t("workflowCount", { count: workflow.serviceIds.length })}</span>
-            <span>{t("workflowMode")}: {modeLabel}</span>
             <span>{t("workflowOpenStrategy")}: {strategyLabel}</span>
           </div>
         </div>
@@ -336,7 +339,7 @@ const WorkflowCard = ({
         </div>
       </div>
       <ol className="workflow-card__steps">
-        {services.map((service) => (
+        {displayedServices.map((service) => (
           <li key={service.id} className="workflow-card__step">
             <span className="workflow-card__step-index">
               {workflow.serviceIds.indexOf(service.id) + 1}
@@ -351,6 +354,18 @@ const WorkflowCard = ({
             </span>
           </li>
         ))}
+        {remainingCount > 0 ? (
+          <li className="workflow-card__step workflow-card__step--more">
+            <button
+              className="workflow-card__step-toggle"
+              type="button"
+              onClick={() => setIsExpanded((current) => !current)}>
+              {isExpanded
+                ? t("workflowCollapseSteps")
+                : t("workflowShowAllSteps")}
+            </button>
+          </li>
+        ) : null}
       </ol>
     </section>
   )
@@ -605,9 +620,6 @@ const OptionsPage = () => {
       setIsReady(true)
     })
 
-    // Track options page open
-    void trackEventWithNotify("options_open", {})
-
     return () => {
       isMounted = false
     }
@@ -719,9 +731,6 @@ const OptionsPage = () => {
           groups: [...prev.groups, newGroup],
           groupOrder: appendGroupId(prev.groupOrder, newGroup.id)
         }))
-
-        // Track group create
-        void trackEventWithNotify("group_create", { groupId: newGroupId, groupName: trimmed, icon })
 
         setGroupIcon(icon)
         if (afterCreate) {
@@ -872,8 +881,6 @@ const OptionsPage = () => {
           groupOrder: prev.groupOrder.filter((id) => id !== groupId)
         }))
 
-        // Track group delete
-        void trackEventWithNotify("group_delete", { groupId, groupName: group.name })
       }
     })
   }
@@ -916,15 +923,6 @@ const OptionsPage = () => {
       workflowOrder: appendWorkflowId(prev.workflowOrder, workflowId)
     }))
 
-    void trackEventWithNotify("workflow_create", {
-      workflowId,
-      workflowName: trimmedName,
-      mode,
-      pinned,
-      openStrategy,
-      serviceIds: normalizedServiceIds
-    })
-
     return true
   }
 
@@ -962,15 +960,6 @@ const OptionsPage = () => {
       )
     }))
 
-    void trackEventWithNotify("workflow_edit", {
-      workflowId,
-      workflowName: trimmedName,
-      mode,
-      pinned,
-      openStrategy,
-      serviceIds: normalizedServiceIds
-    })
-
     return true
   }
 
@@ -991,10 +980,6 @@ const OptionsPage = () => {
           workflowOrder: prev.workflowOrder.filter((id) => id !== workflowId)
         }))
 
-        void trackEventWithNotify("workflow_delete", {
-          workflowId,
-          workflowName: workflow.name
-        })
       }
     })
   }
@@ -1012,11 +997,6 @@ const OptionsPage = () => {
       )
     }))
 
-    void trackEventWithNotify("workflow_edit", {
-      workflowId,
-      workflowName: workflow.name,
-      pinned: !workflow.pinned
-    })
   }
 
   const moveWorkflow = (workflowId: string, direction: -1 | 1) => {
@@ -1081,8 +1061,6 @@ const OptionsPage = () => {
           }))
         }))
 
-        // Track service delete
-        void trackEventWithNotify("service_delete", { serviceId, serviceName: service.name })
       }
     })
   }
@@ -1141,15 +1119,6 @@ const OptionsPage = () => {
       }
 
       return updated
-    })
-
-    // Track service create
-    void trackEventWithNotify("service_create", {
-      serviceId: newService.id,
-      serviceName: trimmedName,
-      urlTemplate: trimmedUrl,
-      groupId,
-      supportedVariables
     })
 
     return true
@@ -1231,15 +1200,6 @@ const OptionsPage = () => {
       }
     })
 
-    // Track service edit
-    void trackEventWithNotify("service_edit", {
-      serviceId,
-      serviceName: trimmedName,
-      urlTemplate: trimmedUrl,
-      groupId,
-      supportedVariables
-    })
-
     return true
   }
 
@@ -1257,8 +1217,6 @@ const OptionsPage = () => {
       URL.revokeObjectURL(url)
       notify(`${t("exportSuccess")} · ${t("statsSummary", stats)}`)
 
-      // Track config export
-      void trackEventWithNotify("config_export", { format: "json" })
     } catch (error) {
       console.error("Export failed:", error)
       notify(t("exportFailed"))
@@ -1313,62 +1271,6 @@ const OptionsPage = () => {
     }
   }
 
-  const handleExportAnalyticsJson = async () => {
-    try {
-      const eventsJson = await exportEvents()
-      if (!eventsJson || eventsJson === "[]") {
-        notify(t("exportAnalyticsEmpty"))
-        return
-      }
-      const blob = new Blob([eventsJson], { type: "application/json" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `onetap-analytics-${new Date().toISOString().split("T")[0]}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      notify(t("exportAnalyticsSuccess"))
-    } catch (error) {
-      console.error("Export analytics failed:", error)
-      notify(t("exportAnalyticsFailed"))
-    }
-  }
-
-  const handleExportAnalyticsCsv = async () => {
-    try {
-      const csvContent = await exportEventsAsCsv()
-      if (!csvContent) {
-        notify(t("exportAnalyticsEmpty"))
-        return
-      }
-      const blob = new Blob([csvContent], { type: "text/csv" })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement("a")
-      a.href = url
-      a.download = `onetap-analytics-${new Date().toISOString().split("T")[0]}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-      notify(t("exportAnalyticsSuccess"))
-    } catch (error) {
-      console.error("Export analytics CSV failed:", error)
-      notify(t("exportAnalyticsFailed"))
-    }
-  }
-
-  const handleClearAnalytics = async () => {
-    try {
-      await clearEvents()
-      notify(t("clearAnalyticsSuccess"))
-    } catch (error) {
-      console.error("Clear analytics failed:", error)
-      notify(t("clearAnalyticsFailed"))
-    }
-  }
-
   const handleImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     if (!file) return
@@ -1387,8 +1289,6 @@ const OptionsPage = () => {
           })}`
         )
 
-        // Track config import
-        void trackEventWithNotify("config_import", {})
       } catch (error) {
         console.error("Import failed:", error)
         notify(t("importFailed"))
@@ -1727,34 +1627,6 @@ const OptionsPage = () => {
                     }}
                   >
                     {t("optionsExportKeywords")}
-                  </button>
-                  <div className="dropdown-divider" />
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      handleExportAnalyticsJson()
-                      setShowConfigMenu(false)
-                    }}
-                  >
-                    {t("optionsExportAnalyticsJson")}
-                  </button>
-                  <button
-                    className="dropdown-item"
-                    onClick={() => {
-                      handleExportAnalyticsCsv()
-                      setShowConfigMenu(false)
-                    }}
-                  >
-                    {t("optionsExportAnalyticsCsv")}
-                  </button>
-                  <button
-                    className="dropdown-item danger"
-                    onClick={() => {
-                      handleClearAnalytics()
-                      setShowConfigMenu(false)
-                    }}
-                  >
-                    {t("optionsClearAnalytics")}
                   </button>
                 </div>
               )}

@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import {
   FileText,
   Globe,
-  History,
   RotateCcw,
   Settings,
   TrendingUp
@@ -14,7 +13,7 @@ import {
   getOrderedGroups,
   getUngroupedServices
 } from "~lib/config"
-import { DEFAULT_GROUP_ID, MAX_HISTORY_ITEMS } from "~lib/constants"
+import { DEFAULT_GROUP_ID } from "~lib/constants"
 import {
   extractDomainFromText,
   getRootDomain,
@@ -33,7 +32,6 @@ import {
   saveRecentOperation,
   subscribeConfig
 } from "~lib/storage"
-import { trackEventWithNotify } from "~lib/analytics"
 import { getUsageStats, incrementUsageStats } from "~lib/stats"
 import { useToast } from "~lib/toast"
 import type { UsageStats } from "~lib/stats"
@@ -61,8 +59,10 @@ const EMPTY_USAGE_STATS: UsageStats = {
 
 type ShortcutItem = {
   key: string
+  dedupeKey: string
   name: string
   countLabel?: string
+  disabled?: boolean
   onMouseDown: (event: React.MouseEvent) => void
 }
 
@@ -164,8 +164,6 @@ const SidePanel = () => {
         getRecentOperations("domain"),
         getRecentOperations("text")
       ])
-
-      void trackEventWithNotify("sidepanel_open", { domain: tabUrl })
 
       if (!isMounted) {
         return
@@ -269,7 +267,7 @@ const SidePanel = () => {
 
     return config.services.filter((service) => {
       if (mode === "domain") {
-        return service.supportedVariables.domain && !service.supportedVariables.text
+        return service.supportedVariables.domain
       }
 
       return service.supportedVariables.text
@@ -311,10 +309,10 @@ const SidePanel = () => {
       }
 
       return workflow.serviceIds.some((serviceId) =>
-        visibleServices.some((service) => service.id === serviceId)
+        config?.services.some((service) => service.id === serviceId)
       )
     })
-  }, [mode, orderedWorkflows, visibleServices])
+  }, [config?.services, mode, orderedWorkflows])
 
   const setError = (message: string) => {
     notify(message)
@@ -326,47 +324,7 @@ const SidePanel = () => {
     await detectSelectionAndSetMode()
   }
 
-  const syncUsageStats = (params: { groupId?: string; serviceIds?: string[] }) => {
-    setUsageStats((current) => {
-      const next: UsageStats = {
-        services: { ...current.services },
-        groups: { ...current.groups }
-      }
-
-      if (params.groupId) {
-        next.groups[params.groupId] = (next.groups[params.groupId] || 0) + 1
-      }
-
-      params.serviceIds?.forEach((serviceId) => {
-        next.services[serviceId] = (next.services[serviceId] || 0) + 1
-      })
-
-      return next
-    })
-  }
-
-  const syncOperationState = (
-    targetMode: OperationMode,
-    operation: LastOperation
-  ) => {
-    setLastOperations((current) => ({
-      ...current,
-      [targetMode]: operation
-    }))
-
-    setRecentOperations((current) => ({
-      ...current,
-      [targetMode]: [
-        operation,
-        ...current[targetMode].filter(
-          (item) => !(item.type === operation.type && item.id === operation.id)
-        )
-      ].slice(0, MAX_HISTORY_ITEMS)
-    }))
-  }
-
   const persistOperation = (operation: LastOperation) => {
-    syncOperationState(mode, operation)
     void saveLastOperation(mode, operation)
     void saveRecentOperation(mode, operation)
   }
@@ -441,7 +399,6 @@ const SidePanel = () => {
     }
 
     persistOperation(operation)
-    syncUsageStats({ serviceIds: [service.id] })
     void incrementUsageStats({ serviceIds: [service.id] })
 
     if (mode === "domain" && domain) {
@@ -468,18 +425,8 @@ const SidePanel = () => {
   }
 
   const handleServiceClick =
-    (service: AnalysisService, surface = "list") => (event: React.MouseEvent) => {
+    (service: AnalysisService) => (event: React.MouseEvent) => {
       const active = event.button === 0
-
-      void trackEventWithNotify(
-        active ? "service_click_foreground" : "service_click_background",
-        {
-          serviceId: service.id,
-          serviceName: service.name,
-          mode,
-          surface
-        }
-      )
 
       void handleOpenService(service, active)
     }
@@ -528,10 +475,6 @@ const SidePanel = () => {
     }
 
     persistOperation(operation)
-    syncUsageStats({
-      groupId: group.id,
-      serviceIds: services.map((service) => service.id)
-    })
     void incrementUsageStats({
       groupId: group.id,
       serviceIds: services.map((service) => service.id)
@@ -562,19 +505,8 @@ const SidePanel = () => {
   }
 
   const handleGroupClick =
-    (group: ServiceGroup, surface = "list") => (event: React.MouseEvent) => {
+    (group: ServiceGroup) => (event: React.MouseEvent) => {
       const active = event.button === 0
-
-      void trackEventWithNotify(
-        active ? "group_click_foreground" : "group_click_background",
-        {
-          groupId: group.id,
-          groupName: group.name,
-          mode,
-          serviceCount: group.serviceIds.length,
-          surface
-        }
-      )
 
       void handleOpenGroup(group, active)
     }
@@ -617,9 +549,6 @@ const SidePanel = () => {
     }
 
     persistOperation(operation)
-    syncUsageStats({
-      serviceIds: services.map((service) => service.id)
-    })
     void incrementUsageStats({
       serviceIds: services.map((service) => service.id)
     })
@@ -650,19 +579,8 @@ const SidePanel = () => {
   }
 
   const handleWorkflowClick =
-    (workflow: Workflow, surface = "workflow") => (event: React.MouseEvent) => {
+    (workflow: Workflow) => (event: React.MouseEvent) => {
       const active = event.button === 0
-
-      void trackEventWithNotify(
-        active ? "workflow_click_foreground" : "workflow_click_background",
-        {
-          workflowId: workflow.id,
-          workflowName: workflow.name,
-          mode,
-          serviceCount: workflow.serviceIds.length,
-          surface
-        }
-      )
 
       void handleOpenWorkflow(workflow, active)
     }
@@ -670,8 +588,6 @@ const SidePanel = () => {
   const handleOpenOptions = async () => {
     const currentTab = await queryActiveTab()
     const windowId = currentTab?.windowId ?? null
-
-    void trackEventWithNotify("open_settings", { domain })
 
     if (chrome?.runtime?.openOptionsPage) {
       await chrome.runtime.openOptionsPage()
@@ -690,8 +606,6 @@ const SidePanel = () => {
   }
 
   const handleUseSelection = async () => {
-    void trackEventWithNotify("use_selection", { mode })
-
     setIsSelecting(true)
     await detectSelectionAndSetMode()
     setIsSelecting(false)
@@ -712,8 +626,9 @@ const SidePanel = () => {
 
       return {
         key: `replay-service-${service.id}`,
+        dedupeKey: `service:${service.id}`,
         name: service.name,
-        onMouseDown: handleServiceClick(service, "replay")
+        onMouseDown: handleServiceClick(service)
       }
     }
 
@@ -727,9 +642,10 @@ const SidePanel = () => {
 
       return {
         key: `replay-workflow-${workflow.id}`,
+        dedupeKey: `workflow:${workflow.id}`,
         name: workflow.name,
         countLabel: `${runnableCount}`,
-        onMouseDown: handleWorkflowClick(workflow, "replay")
+        onMouseDown: handleWorkflowClick(workflow)
       }
     }
 
@@ -742,14 +658,26 @@ const SidePanel = () => {
 
     return {
       key: `replay-group-${group.id}`,
+      dedupeKey: `group:${group.id}`,
       name: group.name,
       countLabel: `${runnableCount}`,
-      onMouseDown: handleGroupClick(group, "replay")
+      onMouseDown: handleGroupClick(group)
     }
   }, [getRunnableServiceCount, handleGroupClick, handleServiceClick, lastOperations, mode, visibleServices])
 
   const recentShortcuts = useMemo<ShortcutItem[]>(() => {
+    const lastOperation = lastOperations[mode]
+
     return recentOperations[mode]
+      .filter((operation) => {
+        if (!lastOperation.id || !lastOperation.type) {
+          return true
+        }
+
+        return !(
+          operation.type === lastOperation.type && operation.id === lastOperation.id
+        )
+      })
       .map<ShortcutItem | null>((operation) => {
         if (!operation.id || !operation.type) {
           return null
@@ -763,11 +691,12 @@ const SidePanel = () => {
 
           return {
             key: `recent-service-${service.id}`,
+            dedupeKey: `service:${service.id}`,
             name: service.name,
             countLabel: usageStats.services[service.id]
               ? `${usageStats.services[service.id]}x`
               : undefined,
-            onMouseDown: handleServiceClick(service, "recent")
+            onMouseDown: handleServiceClick(service)
           }
         }
 
@@ -781,9 +710,10 @@ const SidePanel = () => {
 
           return {
             key: `recent-workflow-${workflow.id}`,
+            dedupeKey: `workflow:${workflow.id}`,
             name: workflow.name,
             countLabel: `${runnableCount}`,
-            onMouseDown: handleWorkflowClick(workflow, "recent")
+            onMouseDown: handleWorkflowClick(workflow)
           }
         }
 
@@ -796,9 +726,10 @@ const SidePanel = () => {
 
         return {
           key: `recent-group-${group.id}`,
+          dedupeKey: `group:${group.id}`,
           name: group.name,
           countLabel: `${runnableCount}`,
-          onMouseDown: handleGroupClick(group, "recent")
+          onMouseDown: handleGroupClick(group)
         }
       })
       .filter((item): item is ShortcutItem => item !== null)
@@ -810,6 +741,7 @@ const SidePanel = () => {
     handleServiceClick,
     handleWorkflowClick,
     getWorkflowById,
+    lastOperations,
     mode,
     recentOperations,
     usageStats.services,
@@ -820,13 +752,18 @@ const SidePanel = () => {
     const pinned = visibleWorkflows.filter((workflow) => workflow.pinned)
     return (pinned.length > 0 ? pinned : visibleWorkflows)
       .slice(0, 4)
-      .map((workflow) => ({
-        key: `workflow-${workflow.id}`,
-        name: workflow.name,
-        countLabel: `${getRunnableWorkflowServices(workflow).length}`,
-        onMouseDown: handleWorkflowClick(workflow, "workflow")
-      }))
-      .filter((item) => item.countLabel !== "0")
+      .map((workflow) => {
+        const runnableCount = getRunnableWorkflowServices(workflow).length
+
+        return {
+          key: `workflow-${workflow.id}`,
+          dedupeKey: `workflow:${workflow.id}`,
+          name: workflow.name,
+          countLabel: `${runnableCount}`,
+          disabled: runnableCount === 0,
+          onMouseDown: handleWorkflowClick(workflow)
+        }
+      })
   }, [getRunnableWorkflowServices, handleWorkflowClick, visibleWorkflows])
 
   const topUsedShortcuts = useMemo<ShortcutItem[]>(() => {
@@ -845,11 +782,28 @@ const SidePanel = () => {
       .slice(0, 4)
       .map((service) => ({
         key: `top-service-${service.id}`,
+        dedupeKey: `service:${service.id}`,
         name: service.name,
         countLabel: `${usageStats.services[service.id]}x`,
-        onMouseDown: handleServiceClick(service, "top")
+        onMouseDown: handleServiceClick(service)
       }))
   }, [handleServiceClick, usageStats.services, visibleServices])
+
+  const suggestionShortcuts = useMemo<ShortcutItem[]>(() => {
+    const seen = new Set<string>()
+    const merged = [...recentShortcuts, ...topUsedShortcuts].filter(
+      (item) => !item.dedupeKey.startsWith("workflow:")
+    )
+
+    return merged.filter((item) => {
+      if (seen.has(item.dedupeKey)) {
+        return false
+      }
+
+      seen.add(item.dedupeKey)
+      return true
+    }).slice(0, 3)
+  }, [recentShortcuts, topUsedShortcuts])
 
   const renderServiceItem = (service: AnalysisService) => (
     <li key={service.id}>
@@ -869,7 +823,10 @@ const SidePanel = () => {
 
   const renderShortcutItem = (item: ShortcutItem) => (
     <li key={item.key}>
-      <button className="shortcut-list__item" onMouseDown={item.onMouseDown}>
+      <button
+        className="shortcut-list__item"
+        disabled={item.disabled}
+        onMouseDown={item.onMouseDown}>
         <span className="shortcut-list__name">{item.name}</span>
         {item.countLabel ? (
           <span className="shortcut-list__meta">{item.countLabel}</span>
@@ -889,18 +846,18 @@ const SidePanel = () => {
               title={t("popupModeDomainTooltip")}
               onClick={() => {
                 setMode("domain")
-                void trackEventWithNotify("mode_switch", { mode: "domain" })
               }}>
               <Globe size={17} />
+              <span>{t("popupModeDomain")}</span>
             </button>
             <button
               className={`popup__mode-tab ${mode === "text" ? "is-active" : ""}`}
               title={t("popupModeTextTooltip")}
               onClick={() => {
                 setMode("text")
-                void trackEventWithNotify("mode_switch", { mode: "text" })
               }}>
               <FileText size={17} />
+              <span>{t("popupModeText")}</span>
             </button>
           </div>
         </div>
@@ -938,9 +895,8 @@ const SidePanel = () => {
             <div className="quick-card__header">
               <div className="quick-card__title">
                 <RotateCcw size={14} />
-                <span>{t("popupLastOperation")}</span>
+                <span>{t("popupReplay")}</span>
               </div>
-              <span className="quick-card__pill">{t("popupReplay")}</span>
             </div>
             <button
               className="quick-card__action"
@@ -953,15 +909,15 @@ const SidePanel = () => {
           </section>
         ) : null}
 
-        {recentShortcuts.length > 0 ? (
+        {suggestionShortcuts.length > 0 ? (
           <section className="group group--shortcut">
             <div className="shortcut-section__header">
               <div className="shortcut-section__title">
-                <History size={14} />
-                <span>{t("popupRecent")}</span>
+                <TrendingUp size={14} />
+                <span>{t("popupSuggestions")}</span>
               </div>
             </div>
-            <ul className="shortcut-list">{recentShortcuts.map(renderShortcutItem)}</ul>
+            <ul className="shortcut-list">{suggestionShortcuts.map(renderShortcutItem)}</ul>
           </section>
         ) : null}
 
@@ -976,15 +932,9 @@ const SidePanel = () => {
           </section>
         ) : null}
 
-        {topUsedShortcuts.length > 0 ? (
-          <section className="group group--shortcut">
-            <div className="shortcut-section__header">
-              <div className="shortcut-section__title">
-                <TrendingUp size={14} />
-                <span>{t("popupTopUsed")}</span>
-              </div>
-            </div>
-            <ul className="shortcut-list">{topUsedShortcuts.map(renderShortcutItem)}</ul>
+        {(ungroupedServices.length > 0 || groupedServices.size > 0) ? (
+          <section className="popup-section">
+            <div className="popup-section__title">{t("popupBrowseServices")}</div>
           </section>
         ) : null}
 

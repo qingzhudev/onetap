@@ -417,8 +417,8 @@ body {
 }
 
 .workflow-card {
-  background: linear-gradient(135deg, #f8fbff 0%, #ffffff 100%);
-  border: 1px solid #dbeafe;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: 14px 16px;
   box-shadow: var(--shadow-sm);
@@ -458,6 +458,15 @@ body {
   font-weight: 600;
 }
 
+.workflow-card__meta-badge {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .workflow-card__meta {
   display: flex;
   flex-wrap: wrap;
@@ -474,16 +483,18 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  border-top: 1px solid var(--border-subtle);
+  padding-top: 12px;
 }
 
 .workflow-card__step {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 7px 0;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.82);
-  border: 1px solid rgba(219, 234, 254, 0.9);
+  background: transparent;
+  border: none;
 }
 
 .workflow-card__step-index {
@@ -521,6 +532,25 @@ body {
   white-space: nowrap;
   font-size: 11px;
   color: var(--text-tertiary);
+}
+
+.workflow-card__step--more {
+  padding: 2px 0 0 32px;
+}
+
+.workflow-card__step-toggle {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 600;
+}
+
+.workflow-card__step-toggle:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
 }
 
 /* Groups */
