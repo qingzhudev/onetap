@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "description": "OneTap browser extension for domain workflows in one click.",
   "author": "OneTap Team",
+  "license": "MIT",
   "private": true,
   "scripts": {
     "dev": "pnpm plasmo dev",

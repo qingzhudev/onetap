@@ -1,61 +1,104 @@
-# OneTap 浏览器插件
+# OneTap
 
-OneTap 是一个基于 Plasmo 的浏览器扩展，用于对当前页面域名或选中文本快速执行预设分析服务，并支持分组管理与一键批量打开。
+OneTap is a Chromium extension for launching repeatable domain and text-based research workflows from the browser side panel.
 
-## 功能概览
-- ✅ **域名分析**：自动提取当前标签页域名（去除 www.）
-- ✅ **文本搜索**：选中文本后直接触发服务
-- ✅ **模式切换**：自动识别域名/文本模式并支持手动切换
-- ✅ **重复操作**：一键重放上次服务或分组
-- ✅ **配置管理**：支持 JSON 与配置码导入/导出
-- ✅ **分组管理**：分组创建、重命名、删除、拖拽排序
-- ✅ **批量打开**：一键打开组内服务（后台打开）
+The extension reads the current page domain or selected text, injects it into configurable URL templates, and opens individual services, grouped services, or ordered workflows with one action. It is built with Plasmo, React, and TypeScript.
 
-详细功能说明请查看 `README_FEATURES.md`。
+## Use Cases
 
-## 变量支持
+- Domain research: Whois, DNS, certificates, search indexing, archive checks, and related public intelligence sources.
+- Security analysis: threat intelligence lookups, URL scanners, blacklist checks, and reputation services.
+- SEO and market research: keyword tools, backlink checks, page snapshots, and competitor research services.
+- Text investigation: selected company names, product names, email addresses, IP addresses, identifiers, or error messages.
+- Repeated workflows: ordered multi-step research flows for recurring review, audit, or triage tasks.
+- Team configuration sharing: exported JSON configurations or config codes for common toolsets.
 
-服务 URL 模板可使用以下变量：
+## Capabilities
 
-- `{domain}` - 当前网站域名（自动去除 www.）
-- `{text}` - 用户在页面上选中的文本
+- Domain mode and text mode.
+- URL templates with `{domain}` and `{text}` variables.
+- Service, group, and workflow management.
+- Ordered workflow execution with foreground-first or background-only tab strategies.
+- Recent operation replay.
+- JSON and config-code import/export.
+- Local domain history, keyword history, and analytics export.
 
-示例：
-- Google Search: `https://google.com/search?q={text}`
-- Site Search: `https://google.com/search?q=site:{domain}+{text}`
-- Whois: `https://whois.domaintools.com/{domain}`
+## Usage
 
-## 开发环境
+OneTap operates in two input modes:
 
-```bash
-npm install
-npm run dev
+- Domain mode uses the current tab's domain and runs services whose URL templates contain `{domain}`.
+- Text mode uses selected or manually entered text and runs services whose URL templates contain `{text}`.
+
+Click behavior in the side panel:
+
+- Left-click a service to open it in an active tab.
+- Right-click a service to open it in a background tab.
+
+## Configuration Samples
+
+Public configuration samples are expected to live in the `samples/` directory. After a sample file is added to the repository, it can be downloaded from [samples/onetap-config.sample.json](samples/onetap-config.sample.json).
+
+## URL Template Variables
+
+Each service URL template must contain at least one supported variable:
+
+- `{domain}`: the current page domain.
+- `{text}`: the selected or manually entered text, URL encoded before insertion.
+
+Examples:
+
+```text
+https://www.google.com/search?q=site:{domain}
+https://www.google.com/search?q={text}
+https://whois.domaintools.com/{domain}
 ```
 
-在浏览器中加载开发构建：`build/chrome-mv3-dev`。
+## Development
 
-## 构建与打包
+Install dependencies:
 
 ```bash
-npm run build
-npm run package
+pnpm install
 ```
 
-打包产物会生成在 `build/` 目录。
+Start the development build:
 
-## 质量保障
-- `npm run lint` 代码规范检查
-- `npm run typecheck` TypeScript 类型检查
-- `npm run test` 单元测试
-- GitHub Actions CI：安装依赖、Lint、Typecheck、Test、Build
-- GitHub Actions CD：标签发布时自动打包并上传产物
+```bash
+pnpm dev
+```
 
-## 目录结构
-- `src/sidepanel.tsx` 侧边栏 UI
-- `src/options.tsx` 分组管理页面
-- `src/lib/` 业务逻辑与存储工具
-- `src/styles/` 样式文件
-- `.github/workflows/` CI/CD
+Load the generated extension directory in a Chromium-based browser:
 
-## 预设配置
-默认提供 5 个分析服务与 3 个分组，可在管理页面自行调整或新增。
+```text
+build/chrome-mv3-dev
+```
+
+## Build
+
+Create a production build:
+
+```bash
+pnpm build
+```
+
+Package the extension:
+
+```bash
+pnpm package
+```
+
+Production artifacts are written to `build/`.
+
+## Quality Checks
+
+```bash
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+```
+
+## License
+
+OneTap is licensed under the MIT License. You may use, copy, modify, and distribute the project, provided that the copyright notice and license text are retained.

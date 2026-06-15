@@ -1,0 +1,291 @@
+{
+  "services": [
+    {
+      "id": "3b61126b-34bb-4321-8fae-5aa7fc65f1fd",
+      "name": "Ahrefs Backlink Checker",
+      "urlTemplate": "https://ahrefs.com/backlink-checker/?input={domain}&mode=subdomains",
+      "createdAt": "2026-02-18T08:29:05.926Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "07acd510-8c21-447c-bc50-24d2f249537b",
+      "name": "Semrush Backlink Analysis",
+      "urlTemplate": "https://www.semrush.com/analytics/backlinks/overview/?q={domain}&searchType=domain",
+      "createdAt": "2026-02-20T05:49:42.684Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "40f52386-ddf8-4055-9c7d-6f65ad8d4fc5",
+      "name": "Ahrefs Keyword Difficulty",
+      "urlTemplate": "https://ahrefs.com/keyword-difficulty/?country=us&input={text}",
+      "createdAt": "2026-02-20T05:52:40.712Z",
+      "supportedVariables": {
+        "domain": false,
+        "text": true
+      }
+    },
+    {
+      "id": "5578ad20-61fc-4ac7-84c1-dc59391f0f27",
+      "name": "Semrush Keyword Overview",
+      "urlTemplate": "https://www.semrush.com/analytics/keywordoverview/?q={text}&db=us",
+      "createdAt": "2026-02-20T05:57:20.984Z",
+      "supportedVariables": {
+        "domain": false,
+        "text": true
+      }
+    },
+    {
+      "id": "6ca96e07-f6cd-480e-9206-8fe0d482aa90",
+      "name": "Similarweb Keyword Generation",
+      "urlTemplate": "https://pro.similarweb.com/#/digitalsuite/acquisition/findkeywords/keyword-generator-tool/999/28d?searchEngine=google&keyword={text}",
+      "createdAt": "2026-02-20T05:58:57.308Z",
+      "supportedVariables": {
+        "domain": false,
+        "text": true
+      }
+    },
+    {
+      "id": "843787cb-7062-455c-a0a8-824d8a30a4f9",
+      "name": "Similarweb Landing Page",
+      "urlTemplate": "https://pro.similarweb.com/#/organicsearch/pageAnalysis/landing-pages-v2/*/999/28d?key={domain}",
+      "createdAt": "2026-02-25T11:31:00.483Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "c6d1b4b1-4dca-41b2-975c-2875397a699a",
+      "name": "Similarweb Domain Analysis",
+      "urlTemplate": "https://pro.similarweb.com/#/digitalsuite/websiteanalysis/overview/website-performance/*/999/28d?webSource=Total&key={domain}",
+      "createdAt": "2026-02-25T11:32:01.005Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "75f4fea5-52bb-4f6f-a32e-710252b4d1e3",
+      "name": "Google Backlinks",
+      "urlTemplate": "https://www.google.com/search?q=%22{domain}%22+-site%3A{domain}",
+      "createdAt": "2026-03-02T06:43:42.690Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "fa32d2ef-b103-4b30-b801-79baf610be11",
+      "name": "Similarweb Domain Keywords",
+      "urlTemplate": "https://pro.similarweb.com/#/organicsearch/pageAnalysis/website-keyword-v2/*/999/28d?key={domain}",
+      "createdAt": "2026-03-02T10:24:46.733Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "38a8668a-fb6b-4eba-95fc-87ec688e9cc6",
+      "name": "Google Search",
+      "urlTemplate": "https://www.google.com/search?q={text}",
+      "createdAt": "2026-03-02T13:13:54.711Z",
+      "supportedVariables": {
+        "domain": false,
+        "text": true
+      }
+    },
+    {
+      "id": "aee25148-12b8-4b89-bcd1-262777fe7d02",
+      "name": "Google Search: site",
+      "urlTemplate": "https://www.google.com/search?q=site%3A{domain}",
+      "createdAt": "2026-03-03T02:30:22.760Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "2144ddae-ce70-4fd1-884a-856263fe7327",
+      "name": "Wayback Machine",
+      "urlTemplate": "https://web.archive.org/web/20250101000000*/{domain}",
+      "createdAt": "2026-03-03T07:20:11.592Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "491ba68b-90de-45fc-9d7c-a07653ff2c46",
+      "name": "Semrush Domain Analysis",
+      "urlTemplate": "https://www.semrush.com/analytics/overview/?q={domain}&searchType=domain",
+      "createdAt": "2026-02-18T08:29:05.926Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "7381744d-fdbc-4a17-80e7-e6649d506ce3",
+      "name": "Search Domains",
+      "urlTemplate": "https://query.domains/?search={text}",
+      "createdAt": "2026-03-05T05:42:24.273Z",
+      "supportedVariables": {
+        "domain": false,
+        "text": true
+      }
+    },
+    {
+      "id": "c277140f-21af-436b-82e9-bc63b88f8712",
+      "name": "Google Trends vs GPTs",
+      "urlTemplate": "https://trends.google.com/explore?q={text}%2Cgpts&date=today%201-m",
+      "createdAt": "2026-03-05T12:35:51.014Z",
+      "supportedVariables": {
+        "domain": false,
+        "text": true
+      }
+    },
+    {
+      "id": "587c7899-0219-49ab-9f53-aedae8c828f1",
+      "name": "Google Search: intitle",
+      "urlTemplate": "https://www.google.com/search?q=intitle:\"{text}\"",
+      "createdAt": "2026-03-05T12:44:29.226Z",
+      "supportedVariables": {
+        "domain": false,
+        "text": true
+      }
+    },
+    {
+      "id": "e32979db-75c3-443a-83a3-f74148a35089",
+      "name": "Semrush Domain Keywords",
+      "urlTemplate": "https://www.semrush.com/analytics/organic/positions/?db=us&q={domain}&searchType=domain",
+      "createdAt": "2026-03-19T07:04:06.294Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    },
+    {
+      "id": "bd52bdac-2801-4b80-9343-64976bd09e71",
+      "name": "Semrush outbound domains",
+      "urlTemplate": "https://www.semrush.com/analytics/backlinks/outbound-domains/?q={domain}&searchType=domain",
+      "createdAt": "2026-04-19T04:09:01.891Z",
+      "supportedVariables": {
+        "domain": true,
+        "text": false
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "id": "a4b5a27d-aec7-4417-b00a-dda0090b8927",
+      "name": "Keyword Validation",
+      "serviceIds": [
+        "7381744d-fdbc-4a17-80e7-e6649d506ce3",
+        "c277140f-21af-436b-82e9-bc63b88f8712",
+        "40f52386-ddf8-4055-9c7d-6f65ad8d4fc5",
+        "5578ad20-61fc-4ac7-84c1-dc59391f0f27",
+        "587c7899-0219-49ab-9f53-aedae8c828f1"
+      ],
+      "mode": "text",
+      "pinned": false,
+      "openStrategy": "foreground-first"
+    },
+    {
+      "id": "8bd55b3d-cb89-432f-98ac-5022f6f26b0c",
+      "name": "Domain Analysis",
+      "serviceIds": [
+        "843787cb-7062-455c-a0a8-824d8a30a4f9",
+        "fa32d2ef-b103-4b30-b801-79baf610be11",
+        "e32979db-75c3-443a-83a3-f74148a35089"
+      ],
+      "mode": "domain",
+      "pinned": false,
+      "openStrategy": "foreground-first"
+    }
+  ],
+  "workflowOrder": [
+    "a4b5a27d-aec7-4417-b00a-dda0090b8927",
+    "8bd55b3d-cb89-432f-98ac-5022f6f26b0c"
+  ],
+  "groups": [
+    {
+      "id": "75166ee3-433e-48e2-b597-78e3169969cf",
+      "name": "Domain Analysis",
+      "icon": "🔍",
+      "order": 0,
+      "serviceIds": [
+        "491ba68b-90de-45fc-9d7c-a07653ff2c46",
+        "bd52bdac-2801-4b80-9343-64976bd09e71",
+        "c6d1b4b1-4dca-41b2-975c-2875397a699a",
+        "843787cb-7062-455c-a0a8-824d8a30a4f9",
+        "7381744d-fdbc-4a17-80e7-e6649d506ce3"
+      ]
+    },
+    {
+      "id": "7eddf479-2124-4530-93f0-d6a88a3bd01f",
+      "name": "Keyword Analysis",
+      "icon": "🔍",
+      "order": 1,
+      "serviceIds": [
+        "e32979db-75c3-443a-83a3-f74148a35089",
+        "5578ad20-61fc-4ac7-84c1-dc59391f0f27",
+        "fa32d2ef-b103-4b30-b801-79baf610be11",
+        "40f52386-ddf8-4055-9c7d-6f65ad8d4fc5",
+        "6ca96e07-f6cd-480e-9206-8fe0d482aa90"
+      ]
+    },
+    {
+      "id": "24a9fd4a-d03a-423c-a4c8-794b47e3efa9",
+      "name": "Backlink Analysis",
+      "icon": "🔍",
+      "order": 2,
+      "serviceIds": [
+        "3b61126b-34bb-4321-8fae-5aa7fc65f1fd",
+        "07acd510-8c21-447c-bc50-24d2f249537b",
+        "75f4fea5-52bb-4f6f-a32e-710252b4d1e3"
+      ]
+    },
+    {
+      "id": "e2653eb1-a365-4263-abba-416afaa0c3d0",
+      "name": "Google Analysis",
+      "icon": "🔍",
+      "order": 3,
+      "serviceIds": [
+        "c277140f-21af-436b-82e9-bc63b88f8712",
+        "38a8668a-fb6b-4eba-95fc-87ec688e9cc6",
+        "aee25148-12b8-4b89-bcd1-262777fe7d02",
+        "587c7899-0219-49ab-9f53-aedae8c828f1"
+      ]
+    }
+  ],
+  "groupOrder": [
+    "default",
+    "75166ee3-433e-48e2-b597-78e3169969cf",
+    "7eddf479-2124-4530-93f0-d6a88a3bd01f",
+    "24a9fd4a-d03a-423c-a4c8-794b47e3efa9",
+    "e2653eb1-a365-4263-abba-416afaa0c3d0"
+  ],
+  "preferences": {
+    "closeSidePanelAfterOpen": "batch-only"
+  },
+  "lastOperations": {
+    "domainMode": {
+      "type": null,
+      "id": null,
+      "name": null,
+      "timestamp": "2026-02-18T08:29:05.926Z"
+    },
+    "textMode": {
+      "type": null,
+      "id": null,
+      "name": null,
+      "timestamp": "2026-02-18T08:29:05.926Z"
+    }
+  }
+}
